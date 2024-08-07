@@ -1,0 +1,90 @@
+CRYST1  115.829   45.790   86.045  90.00 111.28  90.00 C 1 2 1       1
+HETATM    1  PA  GTP B 201      26.343  -1.809  10.643  1.00 17.42           P  
+HETATM    2  PB  GTP B 201      29.511  -1.674  10.473  1.00 16.64           P  
+HETATM    3  PG  GTP B 201      31.060   0.812  11.633  1.00 18.97           P  
+HETATM    4  C5' GTP B 201      25.381  -0.482   8.520  1.00 18.00           C  
+HETATM    5  O5' GTP B 201      25.447  -1.731   9.181  1.00 17.94           O  
+HETATM    6  C4' GTP B 201      24.006  -0.287   7.875  1.00 18.42           C  
+HETATM    7  O4' GTP B 201      23.822  -1.325   6.922  1.00 18.39           O  
+HETATM    8  C3' GTP B 201      22.803  -0.410   8.818  1.00 19.19           C  
+HETATM    9  O3' GTP B 201      21.765   0.465   8.407  1.00 19.82           O  
+HETATM   10  C2' GTP B 201      22.436  -1.892   8.751  1.00 18.98           C  
+HETATM   11  O2' GTP B 201      21.081  -2.238   8.943  1.00 19.36           O  
+HETATM   12  C1' GTP B 201      22.807  -2.198   7.307  1.00 18.63           C  
+HETATM   13  N1  GTP B 201      21.688  -6.375   4.638  1.00 18.81           N  
+HETATM   14  O1A GTP B 201      26.305  -3.231  11.139  1.00 17.35           O1-
+HETATM   15  O1B GTP B 201      29.513  -2.324  11.837  1.00 16.36           O1-
+HETATM   16  O1G GTP B 201      32.412   0.242  11.216  1.00 18.72           O  
+HETATM   17  C2  GTP B 201      21.116  -5.119   4.571  1.00 18.98           C  
+HETATM   18  N2  GTP B 201      20.110  -4.973   3.708  1.00 18.90           N  
+HETATM   19  O2A GTP B 201      25.981  -0.635  11.518  1.00 17.17           O1-
+HETATM   20  O2B GTP B 201      30.300  -2.214   9.306  1.00 16.45           O1-
+HETATM   21  O2G GTP B 201      30.940   2.311  11.324  1.00 19.83           O1-
+HETATM   22  N3  GTP B 201      21.517  -4.130   5.291  1.00 18.98           N  
+HETATM   23  O3A GTP B 201      27.890  -1.544   9.990  1.00 16.65           O  
+HETATM   24  O3B GTP B 201      29.892  -0.024  10.654  1.00 17.69           O  
+HETATM   25  O3G GTP B 201      30.715   0.468  13.087  1.00 19.05           O1-
+HETATM   26  C4  GTP B 201      22.545  -4.458   6.124  1.00 18.76           C  
+HETATM   27  C5  GTP B 201      23.156  -5.674   6.256  1.00 18.57           C  
+HETATM   28  C6  GTP B 201      22.725  -6.783   5.433  1.00 18.46           C  
+HETATM   29  O6  GTP B 201      23.187  -7.918   5.381  1.00 18.05           O  
+HETATM   30  N7  GTP B 201      24.116  -5.642   7.191  1.00 18.52           N  
+HETATM   31  C8  GTP B 201      24.071  -4.412   7.642  1.00 18.67           C  
+HETATM   32  N9  GTP B 201      23.174  -3.633   7.008  1.00 18.80           N  
+HETATM   33  HN1 GTP B 201      21.322  -7.086   4.015  1.00 18.81           H  
+HETATM   34 HC1' GTP B 201      21.977  -1.938   6.648  1.00 18.63           H  
+HETATM   35 HC2' GTP B 201      23.074  -2.477   9.414  1.00 18.98           H  
+HETATM   36 HC3' GTP B 201      23.080  -0.143   9.839  1.00 19.19           H  
+HETATM   37 HC4' GTP B 201      24.013   0.674   7.358  1.00 18.42           H  
+HETATM   38  HC8 GTP B 201      24.673  -4.009   8.441  1.00 18.67           H  
+HETATM   39 HO2' GTP B 201      20.932  -2.392   9.883  1.00 19.36           H  
+HETATM   40 HO3' GTP B 201      20.980   0.282   8.938  1.00 19.82           H  
+HETATM   41 H5'1 GTP B 201      26.151  -0.451   7.757  1.00 18.00           H  
+HETATM   42 H5'2 GTP B 201      25.576   0.353   9.189  1.00 18.00           H  
+HETATM   43 H2_1 GTP B 201      19.618  -4.092   3.645  1.00 18.90           H  
+HETATM   44 H2_2 GTP B 201      19.789  -5.755   3.147  1.00 18.90           H  
+CONECT    1    5   14   19   23
+CONECT    2   15   20   23   24
+CONECT    3   16   21   24   25
+CONECT    4    6   41   42    5
+CONECT    5    1    4
+CONECT    6    4    7    8   37
+CONECT    7    6   12
+CONECT    8    6    9   10   36
+CONECT    9    8   40
+CONECT   10    8   11   12   35
+CONECT   11   10   39
+CONECT   12    7   10   32   34
+CONECT   13   17   33   28
+CONECT   14    1
+CONECT   15    2
+CONECT   16    3
+CONECT   17   13   18   22
+CONECT   18   17   43   44
+CONECT   19    1
+CONECT   20    2
+CONECT   21    3
+CONECT   22   17   26
+CONECT   23    2    1
+CONECT   24    3    2
+CONECT   25    3
+CONECT   26   22   27   32
+CONECT   27   26   28   30
+CONECT   28   27   13   29
+CONECT   29   28
+CONECT   30   27   31
+CONECT   31   30   38   32
+CONECT   32   12   26   31
+CONECT   33   13
+CONECT   34   12
+CONECT   35   10
+CONECT   36    8
+CONECT   37    6
+CONECT   38   31
+CONECT   39   11
+CONECT   40    9
+CONECT   41    4
+CONECT   42    4
+CONECT   43   18
+CONECT   44   18
+END
