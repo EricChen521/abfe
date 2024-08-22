@@ -1,11 +1,15 @@
 #!/bin/bash
 
 #SBATCH --job-name="STAGE-POSE"
-#SBATCH --partition=defq
+#SBATCH --partition=g2
+#SBATCH --output=job.log
+#SBATCH --error=job.err
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
 #SBATCH --gpus=1
-#SBATCH --ntasks=1
-#SBATCH --mem=4G
-#SBATCH -t 24:00:00
+#SBATCH --requeue
+#SBATCH -t 48:00:00
+
 
 # Main command goes here
 conda activate bat
