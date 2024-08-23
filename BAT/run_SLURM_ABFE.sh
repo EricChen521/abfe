@@ -2,7 +2,7 @@
 
 
 
-python BAT.py -i input-sdr-openmm.in -s equil > equil_setup.log
+python /home/eric_clyang521_gmail_com/github/abfe/BAT/BAT.py -i input-sdr-openmm.in -s equil > equil_setup.log
 
 cd equil
 
@@ -28,7 +28,7 @@ cd ../
 
 # run fe step
 
-python BAT.py -i input-sdr-openmm.in -s fe > fe_setup.log
+python /home/eric_clyang521_gmail_com/github/abfe/BAT/BAT.py -i input-sdr-openmm.in -s fe > fe_setup.log
 
 
 # do the calculation for each pose
@@ -38,7 +38,6 @@ cd fe/
 for pose in pose*
 do
 	cd $pose
-	cp ../../run_files/run-op-express.bash .
 	bash run-op-express.bash
 	cd ../
 done
@@ -55,4 +54,4 @@ do
 done
 cd ../
 
-python BAT.py -i input-sdr-openmm.in -s analysis 
+python /home/eric_clyang521_gmail_com/github/abfe/BAT/BAT.py -i input-sdr-openmm.in -s analysis 

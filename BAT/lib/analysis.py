@@ -14,7 +14,6 @@ from pathlib import Path
 
 def fe_openmm(components, temperature, pose, dec_method, rest, attach_rest, lambdas, dic_itera1, dic_itera2, itera_steps, dt, dlambda, dec_int, weights, blocks):
 
-    print(f"Entering fe_openmm function, component: {components}")
     # Total simulation time
     total_time = 0
     for i in components:
@@ -172,7 +171,6 @@ def fe_openmm(components, temperature, pose, dec_method, rest, attach_rest, lamb
         comp = components[i]
         if comp == 'a' or comp == 'l' or comp == 't' or comp == 'c' or comp == 'r' or comp == 'm' or comp == 'n':
           os.chdir('rest')
-          print(f"the current directory: {os.getcwd()}")
           with open('./'+comp+'-comp/output.dat', "r") as f_in:
             lines = (line.rstrip() for line in f_in)
             lines = list(line for line in lines if 'Relative' in line and 'block' in line)

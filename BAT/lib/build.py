@@ -8,6 +8,8 @@ import signal as signal
 import subprocess as sp
 import sys as sys
 from lib import scripts as scripts
+from lib.scripts import BAT_DIR
+import pathlib
 import filecmp
 
 def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ligand_ff, ligand_ph, retain_lig_prot, ligand_charge, other_mol, solv_shell, cofactor_name, cofactor_charge):
@@ -36,7 +38,7 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
     if os.path.exists(f'./build_files_{pose}'):
       shutil.rmtree(f'./build_files_{pose}')
     try:
-      shutil.copytree('../build_files', f'./build_files_{pose}')
+      shutil.copytree(f'{BAT_DIR}/build_files', f'./build_files_{pose}')
     # Directories are the same
     except shutil.Error as e:
       print('Directory not copied. Error: %s' % e)
@@ -47,7 +49,9 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
     print("Entering build_files directory")
     os.chdir(f'build_files_{pose}') 
 
+
     if calc_type == 'dock':
+      shutil.copy('../../all-poses/%s_docked.pdb' %(celp_st), './reference.pdb')
       shutil.copy('../../all-poses/%s_docked.pdb' %(celp_st), './rec_file.pdb')
       shutil.copy('../../all-poses/%s.pdb' %(pose), './')
       shutil.copy(f'../../all-poses/{cofactor_name}.pdb','./')
@@ -204,20 +208,6 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
     sp.call('antechamber -i '+mol.lower()+'-h.pdb -fi pdb -o '+mol.lower()+'.mol2 -fo mol2 -c bcc -s 2 -at '+ligand_ff.lower()+' -nc %d' % ligand_charge, shell=True)
     sp.call('parmchk2 -i '+mol.lower()+'.mol2 -f mol2 -o '+mol.lower()+'.frcmod -s 2', shell=True)
     sp.call('antechamber -i '+mol.lower()+'-h.pdb -fi pdb -o '+mol.lower()+'.pdb -fo pdb', shell=True)
-
-    """
-    # Get ligand parameters
-    if not os.path.exists('../ff/%s.mol2' %mol.lower()):
-      print('Antechamber parameters command: antechamber -i '+mol.lower()+'-h.pdb -fi pdb -o '+mol.lower()+'.mol2 -fo mol2 -c bcc -s 2 -at '+ligand_ff.lower()+' -nc %d' % ligand_charge)
-      sp.call('antechamber -i '+mol.lower()+'-h.pdb -fi pdb -o '+mol.lower()+'.mol2 -fo mol2 -c bcc -s 2 -at '+ligand_ff.lower()+' -nc %d' % ligand_charge, shell=True)
-      shutil.copy('./%s.mol2' %(mol.lower()), '../ff/')
-    if not os.path.exists('../ff/%s.frcmod' %mol.lower()):
-  
-      sp.call('parmchk2 -i '+mol.lower()+'.mol2 -f mol2 -o '+mol.lower()+'.frcmod -s 2', shell=True)
-      shutil.copy('./%s.frcmod' %(mol.lower()), '../ff/')
-    sp.call('antechamber -i '+mol.lower()+'-h.pdb -fi pdb -o '+mol.lower()+'.pdb -fo pdb', shell=True)
-
-    """
 
     # Create raw complex and clean it
     filenames = ['protein.pdb', '%s.pdb' %mol.lower(), 'others.pdb', 'crystalwat.pdb']
@@ -485,7 +475,7 @@ def build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, nt
       if dec_method == 'sdr' and os.path.exists('../build_files'):
         shutil.rmtree('../build_files')    
       try:
-        shutil.copytree('../../../build_files', '../build_files')
+        shutil.copytree(f"{BAT_DIR}/build_files", '../build_files')
       # Directories are the same
       except shutil.Error as e:
         print('Directory not copied. Error: %s' % e)
@@ -618,7 +608,7 @@ def build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, nt
       if os.path.exists('amber_files'):
         shutil.rmtree('./amber_files')
       try:
-        shutil.copytree('../../../amber_files', './amber_files')
+        shutil.copytree(f'{BAT_DIR}/amber_files', './amber_files')
       # Directories are the same
       except shutil.Error as e:
         print('Directory not copied. Error: %s' % e)
@@ -637,7 +627,8 @@ def build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, nt
       if os.path.exists('run_files'):
         shutil.rmtree('./run_files')
       try:
-        shutil.copytree('../../../run_files', './run_files')
+        print(f"coping run_file from: {BAT_DIR}/run_files to {pathlib.Path('./run_files').resolve()}")
+        shutil.copytree(f'{BAT_DIR}/run_files', './run_files')
       # Directories are the same
       except shutil.Error as e:
         print('Directory not copied. Error: %s' % e)
@@ -752,6 +743,7 @@ def build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, nt
             total_atom += 1
       else:
         for i in range(1, 2):
+          print(f"current dir: {os.getcwd()}")
           shutil.copy('../../build_files/dum'+str(i)+'.pdb', './')
           with open('dum'+str(i)+'.pdb') as dum_in:
             lines = (line.rstrip() for line in dum_in)
@@ -965,7 +957,7 @@ def create_box(comp, hmr, pose, mol, num_waters, water_model, ion_def, neut, buf
       if os.path.exists('amber_files'):
         shutil.rmtree('./amber_files')
       try:
-        shutil.copytree('../amber_files', './amber_files')
+        shutil.copytree(f'{BAT_DIR}/amber_files', './amber_files')
       # Directories are the same
       except shutil.Error as e:
         print('Directory not copied. Error: %s' % e)

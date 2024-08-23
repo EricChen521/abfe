@@ -60,7 +60,22 @@ A quick installation guide for all the dependencies, using the Anaconda package 
 
 The folder ./BAT/all-poses contains examples of input coordinate files, with a docked receptor from the 5uez crystal structure (LMCSS-5uf0\_5uez\_docked.pdb), as well as 9 docked poses for the ligand with the 5uf0 crystal structure (pose0.pdb to pose8.pdb). The docking files were generated and converted to .pdb using Autodock Vina and AutodockTools, following a protocol adapted from the CELPP challenge tutorial (https://docs.google.com/document/d/1iJcPUktbdrRftAA8cuVa32Ri1TPr2XvZVqTccDja2OM). Inside the ./all-poses folder there is also the original crystal structure file for 5uf0, in pdb format. Below we show an example of using these files to calculate the standard binding free energies of the top 5 docked poses and the crystal structure, with all the necessary steps in the calculation.
 
-**In order to run the code, a `reference.pdb` file should be placed into the `/BAT/build_file` to enable alignment. In this version, each pose can be different compound design.** 
+
+# Run ABBF on slurm HPC.
+
+**To prepare the directory to run BAT on slurm with the slurm_feature branch**
+```
+all_pose
+    |-*_docked.pdb (prepared receptor file)
+    |-<COFACROR>.pdb (for example, GTP.pdb)
+    |-pose0.pdb
+    |-pose1.pdb
+    |-***
+
+input-sdr-openmm.in (need to update celpp_receptor, P1/P2/P3, other_mol, cofactor_name, l1_x,l1_y,l1_z variable names)
+
+run_SLURM_ABFE.sh
+```
 
 # Running a sample calculation with AMBER
 

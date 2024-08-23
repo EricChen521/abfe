@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 import datetime as dt
 import glob as glob
 import os as os
@@ -7,6 +7,10 @@ import shutil as shutil
 import signal as signal
 import subprocess as sp
 import sys as sys
+import pathlib
+
+
+BAT_DIR=pathlib.Path(__file__).parents[1].absolute()
 
 def help_message():
     print('Use the flags -i and -s for the input file and current stage of the calculations')

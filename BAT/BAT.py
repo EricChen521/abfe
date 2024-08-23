@@ -8,9 +8,15 @@ import subprocess as sp
 import sys as sys
 from lib import build 
 from lib import scripts 
+from lib.scripts import BAT_DIR
 from lib import setup
 from lib import analysis
 import numpy as np 
+import pathlib
+
+
+if BAT_DIR not in sys.path:
+   sys.path.append(BAT_DIR)
 
 ion_def = []
 poses_list = []
@@ -691,8 +697,6 @@ if stage == 'equil':
     print ('WARNING: Could not find the ligand L2 or L3 anchors for', aa2_poses)
     print ('Try reducing the min_adis parameter in the input file.')
 
-  print("equil stage is completed successfully!")
-
 elif stage == 'fe':
   # Create systems for all poses after preparation
   num_sim = apr_sim
@@ -876,7 +880,7 @@ elif stage == 'fe':
     print ('Try reducing the min_adis parameter in the input file.')
     for i in aa2_poses:
       shutil.rmtree('./'+i+'')
-  print("FE stage is completed successfully!")
+ 
 elif stage == 'analysis':
   # Free energy analysis for OpenMM
   if software == 'openmm':
@@ -906,7 +910,7 @@ if software == 'openmm' and stage == 'equil':
     rng = len(release_eq) - 1
     if os.path.exists(pose):
       print(pose)
-      os.rename(pose, pose+'-amber')
+      shutil.move(pose, pose+'-amber')
       os.mkdir(pose)
       os.chdir(pose)
       shutil.copy('../'+pose+'-amber/equil-%s.pdb' % mol.lower(), './')
@@ -922,21 +926,21 @@ if software == 'openmm' and stage == 'equil':
         shutil.copy(file, './')
       for file in glob.glob('../'+pose+'-amber/tleap_solvate*'):
         shutil.copy(file, './')
-      fin = open('../../run_files/local-equil-op.bash', "rt")
+      fin = open(f'{BAT_DIR}/run_files/local-equil-op.bash', "rt")
       data = fin.read()
       data = data.replace('RANGE', '%02d' %rng)
       fin.close()
       fin = open('run-local.bash', "wt")
       fin.write(data)
       fin.close()
-      fin = open('../../run_files/PBS-Op', "rt")
+      fin = open(f'{BAT_DIR}/run_files/PBS-Op', "rt")
       data = fin.read()
       data = data.replace('STAGE', stage).replace('POSE', pose) 
       fin.close()
       fin = open('PBS-run', "wt")
       fin.write(data)
       fin.close()
-      fin = open('../../run_files/SLURMM-Op', "rt")
+      fin = open(f'{BAT_DIR}/run_files/SLURMM-Op', "rt")
       data = fin.read()
       data = data.replace('STAGE', stage[0]).replace('POSE', pose[-1]) 
       fin.close()
@@ -944,7 +948,7 @@ if software == 'openmm' and stage == 'equil':
       fin.write(data)
       fin.close()
       for j in range(0, len(release_eq)):
-        fin = open('../../lib/equil.py', "rt")
+        fin = open(f'{BAT_DIR}/lib/equil.py', "rt")
         data = fin.read()
         data = data.replace('LIG', mol.upper()).replace('TMPRT', str(temperature)).replace('TSTP', str(dt)).replace('GAMMA_LN', str(gamma_ln)).replace('STG','%02d' %j).replace('CTF', cut) 
         if hmr == 'yes':
@@ -960,8 +964,8 @@ if software == 'openmm' and stage == 'equil':
         fin.write(data)
         fin.close()
       os.chdir('../')
-      shutil.rmtree('./'+pose+'-amber')
-  print(os.getcwd())
+      shutil.rmtree('./'+pose+'-amber') 
+  print("Equil stage setup  is completed successfully!")
 
 if software == 'openmm' and stage == 'fe':
 
@@ -999,6 +1003,8 @@ if software == 'openmm' and stage == 'fe':
     if not os.path.exists(poses_def[i]):
       continue
     os.chdir(poses_def[i])
+    # copy the slurm run scirpt to each pose dir
+    shutil.copyfile(f"{BAT_DIR}/run_files/run-op-express.bash",'./run-op-express.bash')
     for j in range(0, len(components)):
       comp = components[j]
       if comp == 'a' or comp == 'l' or comp == 't' or comp == 'r' or comp == 'c' or comp == 'm' or comp == 'n':
@@ -1010,22 +1016,22 @@ if software == 'openmm' and stage == 'fe':
           os.chdir(comp+'-comp')
           itera1 = dic_itera1[comp]
           itera2 = dic_itera2[comp]
-          shutil.copy('../../../../run_files/local-rest-op.bash', './run-local.bash')
-          fin = open('../../../../run_files/PBS-Op', "rt")
+          shutil.copy(f'{BAT_DIR}/run_files/local-rest-op.bash', './run-local.bash')
+          fin = open(f'{BAT_DIR}/run_files/PBS-Op', "rt")
           data = fin.read()
           data = data.replace('POSE', comp).replace('STAGE', poses_def[i]) 
           fin.close()
           fin = open('PBS-run', "wt")
           fin.write(data)
           fin.close()
-          fin = open('../../../../run_files/SLURMM-Op', "rt")
+          fin = open(f'{BAT_DIR}/run_files/SLURMM-Op', "rt")
           data = fin.read()
           data = data.replace('POSE', comp).replace('STAGE', 'p' + poses_def[i].split('pose')[-1]) 
           fin.close()
           fin = open('SLURMM-run', "wt")
           fin.write(data)
           fin.close()
-          fin = open('../../../../lib/rest.py', "rt")
+          fin = open(f'{BAT_DIR}/lib/rest.py', "rt")
           data = fin.read()
           data = data.replace('LAMBDAS', '[%s]' % ' , '.join(map(str, lambdas_rest))).replace('LIG', mol.upper()).replace('TMPRT', str(temperature)).replace('TSTP', str(dt)).replace('SPITR', str(itera_steps)).replace('PRIT', str(itera2)).replace('EQIT', str(itera1)).replace('ITCH', str(itcheck)).replace('GAMMA_LN', str(gamma_ln)).replace('CMPN', str(comp)).replace('CTF', cut).replace('BLCKS', str(blocks)) 
           if hmr == 'yes':
@@ -1127,22 +1133,22 @@ if software == 'openmm' and stage == 'fe':
               if not os.path.exists('%s%02d' %(comp, int(k))):
                 os.makedirs('%s%02d' %(comp, int(k)))
               os.chdir('%s%02d' %(comp, int(k)))
-              shutil.copy('../../../../../run_files/local-sdr-op-ti.bash', './run-local.bash')
-              fin = open('../../../../../run_files/SLURMM-Op', "rt")
+              shutil.copy(f'{BAT_DIR}/run_files/local-sdr-op-ti.bash', './run-local.bash')
+              fin = open(f'{BAT_DIR}/run_files/SLURMM-Op', "rt")
               data = fin.read()
               data = data.replace('STAGE', 'p' + poses_def[i].split('pose')[-1]).replace('POSE', '%s%02d' %(comp, int(k)))
               fin.close()
               fin = open("SLURMM-run", "wt")
               fin.write(data)
               fin.close()
-              fin = open('../../../../../run_files/PBS-Op', "rt")
+              fin = open(f'{BAT_DIR}/run_files/PBS-Op', "rt")
               data = fin.read()
               data = data.replace('STAGE', poses_def[i]).replace('POSE', '%s%02d' %(comp, int(k)))
               fin.close()
               fin = open("PBS-run", "wt")
               fin.write(data)
               fin.close()
-              fin = open('../../../../../lib/equil-sdr.py', "rt")
+              fin = open(f'{BAT_DIR}/lib/equil-sdr.py', "rt")
               data = fin.read()
               data = data.replace('LBD0', '%8.6f' % lambdas[k]).replace('LIG', mol.upper()).replace('TMPRT', str(temperature)).replace('TSTP', str(dt)).replace('SPITR', str(itera_steps)).replace('PRIT', str(itera2)).replace('EQIT', str(itera1)).replace('ITCH', str(itcheck)).replace('GAMMA_LN', str(gamma_ln)).replace('CMPN', str(comp)).replace('CTF', cut) 
               if hmr == 'yes':
@@ -1153,7 +1159,7 @@ if software == 'openmm' and stage == 'fe':
               fin = open('equil-sdr.py', "wt")
               fin.write(data)
               fin.close()
-              fin = open('../../../../../lib/sdr-ti.py', "rt")
+              fin = open(f'{BAT_DIR}/lib/sdr-ti.py', "rt")
               data = fin.read()
               # "Split" initial lambda into two close windows 
               lambda1 = float(lambdas[k] - dlambda/2)
@@ -1333,3 +1339,4 @@ if software == 'openmm' and stage == 'fe':
     if os.path.exists(dirpath) and os.path.isdir(dirpath):
       shutil.rmtree(dirpath)
     os.chdir('../')    
+    print("FE stage setup is completed successfully!")

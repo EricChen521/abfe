@@ -7,8 +7,8 @@
 # Calculation definitions
 
 calc_type = dock                                # docked or crystal structure
-celpp_receptor = 6ziz_prepared              # Choose CELPP receptor in upper case or pdb code in lower case
-poses_list = [0,1]                        # List of poses for docked calculations, called pose0.pdb, pose1.pdb, pose2.pdb, etc. 
+celpp_receptor = 6ziz_prepared              # Choose CELPP receptor in upper case or pdb code in lower case, the receptor file name has to be "6ziz_prepared_docked.pdb"
+poses_list = [0]                        # List of poses for docked calculations, called pose0.pdb, pose1.pdb, pose2.pdb, etc. 
 
 # Ligand residue name
 
@@ -81,8 +81,8 @@ hmr             = yes       # Use hydrogen mass repartitioning (yes or no)
 
 Temperature	=   298.15    # Temperature of simulation and analysis 
 
-eq_steps1	=   50000    # Number of steps for equilibration gradual release 
-eq_steps2	=   150000  # Number of steps for equilibration after release
+eq_steps1	=   500000    # Number of steps for equilibration gradual release 
+eq_steps2	=   1500000  # Number of steps for equilibration after release
 
 m_itera1	=   200       # Number of iterations for component m (equilibrium)   
 m_itera2	=   400       # Number of iterations for component m (production) 
@@ -114,9 +114,9 @@ bb_equil        = yes       # Keep this backbone section rigid during equilibrat
 
 # Ligand anchor search definitions
 
-l1_x            = 6.949     # X distance between P1 and center of L1 search range
-l1_y            = -0.988     # Y distance between P1 and center of L1 search range  
-l1_z            = 0.455     # Z distance between P1 and center of L1 search range  
+l1_x            = 6.949     # X vector from P1 to center of L1 search range
+l1_y            = -0.988     # Y vector from P1 to center of L1 search range  
+l1_z            = 0.455     # Z vector from P1 to center of L1 search range  
 l1_range        =  5     # search radius for the first ligand anchor L1 
 min_adis        =  3.00     # minimum distance between anchors
 max_adis        =  7.00     # maximum distance between anchors

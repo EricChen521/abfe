@@ -8,6 +8,7 @@ import signal as signal
 import subprocess as sp
 import sys as sys
 from lib import scripts as scripts
+from lib.scripts import BAT_DIR
 
 def restraints(pose, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol):
 
@@ -689,7 +690,7 @@ def sim_files(hmr, temperature, mol, num_sim, pose, comp, win, stage, steps1, st
       # Copy folder for running simulations
       if not os.path.exists('run_files'):
         try:
-          shutil.copytree('../run_files', './run_files')
+          shutil.copytree(f'{BAT_DIR}/run_files', './run_files')
         # Directories are the same
         except shutil.Error as e:
           print('Directory not copied. Error: %s' % e)
