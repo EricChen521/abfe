@@ -138,8 +138,7 @@ for i in range(0, len(lines)):
         elif lines[i][0] =="cofactor_charge":
            cofactor_charge = lines[i][1]    
         elif lines[i][0] == "cofactor_name":
-          cofactor_name = lines[i][1]
-          print(cofactor_name)
+          cofactor_name = lines[i][1] 
         elif lines[i][0] == 'eq_steps1':
             eq_steps1 = scripts.check_input('int', lines[i][1], input_file, lines[i][0]) 
         elif lines[i][0] == 'eq_steps2':
@@ -418,7 +417,6 @@ for i in range(0, len(lines)):
             strip_line = lines[i][1].strip('\'\"-,.:;#()][').split()
             for j in range(0, len(strip_line)):
                 components.append(strip_line[j])
-            print(f"components from input: {components}")
         elif lines[i][0] == 'ntpr':
             ntpr = lines[i][1]
         elif lines[i][0] == 'ntwr':
@@ -498,7 +496,6 @@ elif fe_type == 'sdr-rest':
   dec_method = 'sdr'
 elif fe_type == 'express':
   components = ['m', 'n', 'e', 'v']
-  print(f"change components to {components}") 
   dec_method = 'sdr'
 elif fe_type == 'dd-rest':
   components = ['c', 'a', 'l', 't', 'r', 'e', 'v', 'f', 'w'] 
@@ -600,8 +597,6 @@ if dec_int == 'ti':
   else:
     print('Wrong input! Please choose a positive integer for the ti_points variable when using the TI-GQ method')
     sys.exit(1)
-  print('lambda values:', lambdas) 
-  print('Gaussian weights:', weights) 
 elif dec_int == 'mbar': 
   if lambdas == []:
     print('Wrong input! Please choose a set of lambda values when using the MBAR method')
@@ -609,32 +604,27 @@ elif dec_int == 'mbar':
   if ti_points != 0:
     print('Wrong input! Do not define the ti_points variable when applying the MBAR method, instead choose a set of lambda values')
     sys.exit(1)
-  print('lambda values:', lambdas) 
 
 
 # Adjust components and windows for OpenMM
 
+# generate the md08.rst7 under equil/pose# for fe
 if software == 'openmm' and stage == 'fe': 
+  print("Set up dir for fe")
   components_inp = list(components)
-  print(components_inp)
   if sdr_dist == 0:
     dec_method_inp = dec_method 
     components = ['t', 'c']
   else: 
     dec_method_inp = dec_method 
-    print(dec_method_inp)
     dec_method = 'sdr' 
     components = ['t', 'c', 'n', 'v']
   attach_rest_inp = list(attach_rest)
-  print(attach_rest_inp)
   attach_rest = [ 100.0 ]
   lambdas_inp = list(lambdas)
-  print(lambdas_inp)
   lambdas = [ 0.0 ]
   dt = str(float(dt)*1000)
-  print(dt)
   cut = str(float(cut)/10)
-  print(cut)
 
   # Convert equil output file
   os.chdir('equil')
@@ -645,8 +635,9 @@ if software == 'openmm' and stage == 'fe':
       os.chdir(pose)
       convert_file = open('convert.in', 'w')
       convert_file.write('parm full.prmtop\n')
-      convert_file.write('trajin md%02d.dcd\n' %rng)
-      convert_file.write('trajout md%02d.rst7 onlyframes 10\n' %rng)
+      convert_file.write('trajin md%02d.dcd lastframe\n' %rng)
+      convert_file.write('trajout md%02d.rst7\n' %rng)
+      convert_file.write('trajout eq_final.pdb\ngo\nquit\n')
       convert_file.close() 
       sp.call('cpptraj -i convert.in > convert.log', shell=True)
       os.chdir('../')
@@ -656,11 +647,14 @@ if software == 'openmm' and stage == 'fe':
 if stage == 'equil':
   comp = 'q'
   win = 0
+  print("Entering buidling equil dir:")
+  print(f"pose_def: {poses_def}")
   # Create equilibrium systems for all poses listed in the input file
   for i in range(0, len(poses_def)):
     rng = len(release_eq) - 1
     pose = poses_def[i]
-    if not os.path.exists('./all-poses/'+pose+'.pdb'):
+    if not os.path.exists('./all-poses/'+pose+'.sdf'):
+      print(f"{pose}.sdf file does not exist")
       continue
     print('Setting up '+str(poses_def[i]))
     # Get number of simulations
@@ -698,6 +692,7 @@ if stage == 'equil':
     print ('Try reducing the min_adis parameter in the input file.')
 
 elif stage == 'fe':
+  print("setting up fe dir")
   # Create systems for all poses after preparation
   num_sim = apr_sim
   # Create and move to free energy directory
@@ -888,6 +883,7 @@ elif stage == 'analysis':
       pose = poses_def[i]
       analysis.fe_openmm(components, temperature, pose, dec_method, rest, attach_rest, lambdas, dic_itera1, dic_itera2, itera_steps, dt, dlambda, dec_int, weights, blocks)
       os.chdir('../../')
+      print(f"Analysis for {pose} completed successfully!")
   else: 
   # Free energy analysis for AMBER20
     for i in range(0, len(poses_def)):
@@ -1339,4 +1335,4 @@ if software == 'openmm' and stage == 'fe':
     if os.path.exists(dirpath) and os.path.isdir(dirpath):
       shutil.rmtree(dirpath)
     os.chdir('../')    
-    print("FE stage setup is completed successfully!")
+    print(f"FE stage setup for {poses_def[i]} is completed successfully!")

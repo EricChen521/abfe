@@ -1,0 +1,14 @@
+name: bat
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - rdkit
+  - vmd=1.9.3
+  - python=3.8
+  - lapack
+  - gfortran
+  - ambertools=23
+  - openmm
+  - openmmtools

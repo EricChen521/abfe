@@ -10,23 +10,39 @@ import sys as sys
 from lib import scripts as scripts
 from lib.scripts import BAT_DIR
 import pathlib
-import filecmp
+from rdkit import Chem
 
 def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ligand_ff, ligand_ph, retain_lig_prot, ligand_charge, other_mol, solv_shell, cofactor_name, cofactor_charge):
 
 
     # get the parameters for cofactor
+    print("Entering build_equil function")
     if cofactor_name:
       os.chdir('all-poses')
 
       if not os.path.exists(f"{cofactor_name.lower()}.frcmod"):
         print(f"Run antechamber for {cofactor_name} at dir: {os.getcwd()} ")
-        sp.call(f'antechamber -i {cofactor_name}.pdb -fi pdb -o {cofactor_name.lower()}.mol2 -fo mol2 -c bcc -s 2 -at gaff2 -nc {int(cofactor_charge)}', shell=True)
+        sp.call(f'antechamber -i {cofactor_name}.sdf -fi sdf -o {cofactor_name.lower()}.mol2 -rn {cofactor_name} -fo mol2 -c bcc -s 2 -at gaff2 -nc {int(cofactor_charge)}', shell=True)
         sp.call(f'parmchk2 -i {cofactor_name.lower()}.mol2 -f mol2 -o {cofactor_name.lower()}.frcmod -s 2', shell=True)
+        
+        molecule = Chem.SDMolSupplier(f"{cofactor_name}.sdf")[0]
+        #Chem.EmbedMolecule(molecule)
+        blk=Chem.MolToPDBBlock(molecule)
+        with open("cofactor_temp.pdb","w+") as fh:
+          fh.write(blk)
+
+        # replace UNL to mol mol
+        with open('cofactor.pdb',"w+") as fh:
+          ori_string = open("cofactor_temp.pdb","r").read()
+          new_string=ori_string.replace('UNL',cofactor_name)
+          fh.write(new_string) 
+        
+
         # clean middle files
-        for file in glob.glob("ANTE*") + glob.glob("sqm*") + glob.glob("*INF"):
+        for file in glob.glob("ANTE*") + glob.glob("sqm*") + glob.glob("*INF") + ['cofactor_temp.pdb']:
           os.remove(file)
       os.chdir("../")
+    
 
     # Not apply SDR distance when equilibrating
     sdr_dist = 0
@@ -53,8 +69,9 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
     if calc_type == 'dock':
       shutil.copy('../../all-poses/%s_docked.pdb' %(celp_st), './reference.pdb')
       shutil.copy('../../all-poses/%s_docked.pdb' %(celp_st), './rec_file.pdb')
-      shutil.copy('../../all-poses/%s.pdb' %(pose), './')
-      shutil.copy(f'../../all-poses/{cofactor_name}.pdb','./')
+      shutil.copy('../../all-poses/%s.sdf' %(pose), './')
+      if cofactor_name:
+        shutil.copy(f'../../all-poses/cofactor.pdb','./')
     elif calc_type == 'crystal':    
       shutil.copy('../../all-poses/%s.pdb' %(pose), './')
       # Replace names and run initial VMD script
@@ -152,30 +169,18 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
     # Adjust ligand files
     # Mudong's mod: optionally retain the ligand protonation state as provided in pose*.pdb, and skip Babel processing (removing H, adding H, determining total charge)
     if retain_lig_prot == 'yes':
+      print("keeping the orignal ligand protation!")
       # Determine ligand net charge by reading the rightmost column of pose*.pdb, programs such as Maestro writes atom charges there
       if ligand_charge == 'nd':
         ligand_charge = 0
-        with open(''+pose+'.pdb') as f_in:
-          for line in f_in:
-            if '1+' in line:
-              ligand_charge += 1
-            elif '2+' in line:
-              ligand_charge += 2
-            elif '3+' in line:
-              ligand_charge += 3
-            elif '4+' in line:
-              ligand_charge += 4
-            elif '1-' in line:
-              ligand_charge += -1
-            elif '2-' in line:
-              ligand_charge += -2
-            elif '3-' in line:
-              ligand_charge += -3
-            elif '4-' in line:
-              ligand_charge += -4
+        print(f"evaluate the ligand charge: {pathlib.Path('.').resolve()}")
+
+        molecule = Chem.SDMolSupplier(f"{pose}.sdf")[0]
+        ligand_charge = Chem.GetFormalCharge(molecule)
+
       print('The net charge of the ligand is %d' %ligand_charge)
       if calc_type == 'dock':
-        shutil.copy('./'+pose+'.pdb', './'+mol.lower()+'-h.pdb')
+        shutil.copy('./'+pose+'.sdf', './'+mol.lower()+'-h.sdf')
       elif calc_type == 'crystal':
         shutil.copy('./'+mol.lower()+'.pdb', './'+mol.lower()+'-h.pdb')
     else:
@@ -204,13 +209,30 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
       print('The net charge of the ligand is %d' %ligand_charge)
 
 
-    print(f'Antechamber parameter for {pose}: antechamber -i '+mol.lower()+'-h.pdb -fi pdb -o '+mol.lower()+'.mol2 -fo mol2 -c bcc -s 2 -at '+ligand_ff.lower()+' -nc %d' % ligand_charge)
-    sp.call('antechamber -i '+mol.lower()+'-h.pdb -fi pdb -o '+mol.lower()+'.mol2 -fo mol2 -c bcc -s 2 -at '+ligand_ff.lower()+' -nc %d' % ligand_charge, shell=True)
+    print(f'Antechamber parameter for {pose}: antechamber -i '+mol.lower()+'-h.sdf -fi sdf -o '+mol.lower()+'.mol2 -fo mol2 -c bcc -s 2 -at '+ligand_ff.lower()+' -nc %d' % ligand_charge)
+    sp.call('antechamber -i '+mol.lower()+'-h.sdf -fi sdf -o '+mol.lower()+f'.mol2 -fo mol2 -c bcc -s 2 -rn {mol} -at '+ligand_ff.lower()+' -nc %d' % ligand_charge, shell=True)
     sp.call('parmchk2 -i '+mol.lower()+'.mol2 -f mol2 -o '+mol.lower()+'.frcmod -s 2', shell=True)
-    sp.call('antechamber -i '+mol.lower()+'-h.pdb -fi pdb -o '+mol.lower()+'.pdb -fo pdb', shell=True)
 
+    molecule = Chem.SDMolSupplier(f"{mol.lower()}-h.sdf")[0]
+    #Chem.EmbedMolecule(molecule)
+    blk=Chem.MolToPDBBlock(molecule)
+
+    with open(f"{mol.lower()}_temp.pdb","w+") as fh:
+       fh.write(blk)
+
+    with open(f'{mol.lower()}.pdb',"w+") as fh:
+       ori_string = open(f"{mol.lower()}_temp.pdb","r").read()
+       new_string=ori_string.replace('UNL',mol)
+       fh.write(new_string)
+       
+
+    # To make sure complex.pdb has the correct atomtype for GTP as in gtp.mol2
     # Create raw complex and clean it
-    filenames = ['protein.pdb', '%s.pdb' %mol.lower(), 'others.pdb', 'crystalwat.pdb']
+    if cofactor_name:
+      filenames = ['protein.pdb', '%s.pdb' %mol.lower(), 'others.pdb', 'cofactor.pdb', 'crystalwat.pdb']
+    else:
+      filenames = ['protein.pdb', '%s.pdb' %mol.lower(), 'others.pdb', 'crystalwat.pdb']
+       
     with open('./complex-merge.pdb', 'w') as outfile:
         for fname in filenames:
             with open(fname) as infile:
@@ -222,7 +244,7 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
                 newfile.write(line)
 
     # Align to reference structure using lovoalign
-
+   
     print(f"The current directory: {os.getcwd()}")
     sp.call('lovoalign -p1 complex.pdb -p2 reference.pdb -o aligned.pdb', shell=True)
 
@@ -256,8 +278,9 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
     os.chdir(pose)
 
     # copy the cofactor mol2 and frcmod files to each pose dir
-    shutil.copy(f"../../all-poses/{cofactor_name.lower()}.mol2", "./")
-    shutil.copy(f"../../all-poses/{cofactor_name.lower()}.frcmod", "./")
+    if cofactor_name:
+      shutil.copy(f"../../all-poses/{cofactor_name.lower()}.mol2", "./")
+      shutil.copy(f"../../all-poses/{cofactor_name.lower()}.frcmod", "./")
 
 
     dum_coords = []
@@ -483,12 +506,14 @@ def build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, nt
       except OSError as e:
         print('Directory not copied. Error: %s' % e)
       os.chdir('../build_files')
+      print(f"working on: {os.getcwd()}")
       # Get last state from equilibrium simulations
       shutil.copy('../../../equil/'+pose+'/md%02d.rst7' %fwin, './')
       for file in glob.glob('../../../equil/%s/full*.prmtop' %pose.lower()):
         shutil.copy(file, './')
       for file in glob.glob('../../../equil/%s/vac*' %pose.lower()):
         shutil.copy(file, './')
+      
       sp.call('cpptraj -p full.prmtop -y md%02d.rst7 -x rec_file.pdb' %fwin, shell=True)
 
       # Split initial receptor file
