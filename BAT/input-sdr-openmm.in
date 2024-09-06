@@ -4,15 +4,16 @@
 ########## Input file for BAT.py, for fully automated absolute binding free energy calculations ##########
 #############################################################################################################
 
+input_dir = "all-poses"
+
 # Calculation definitions
 
-calc_type = dock                                # docked or crystal structure
-celpp_receptor = 6ziz_prepared              # Choose CELPP receptor in upper case or pdb code in lower case, the receptor file name has to be "6ziz_prepared_docked.pdb"
-poses_list = [0]                        # List of poses for docked calculations, called pose0.pdb, pose1.pdb, pose2.pdb, etc. 
+celpp_receptor = 6ziz_prepared.pdb        # the receptor file, should include water, mental ions if any
+ligands_list = [ligand0, ligand1]              # List of poses for docked calculations, should be name as ligand#.pdb. 
 
 # Ligand residue name
 
-ligand_name     = EZZ   # Ligand name in the docked poses or crystal structure 
+ligand_name     = LIG   # Ligand name will be named to LIG
 
 # Protein anchors, using original protein sequence 
 

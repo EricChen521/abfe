@@ -6,21 +6,25 @@ python /home/eric_clyang521_gmail_com/github/abfe/BAT/BAT.py -i input-sdr-openmm
 
 cd equil
 
-for pose in pose*
+for lig in ligand*
 do
-	cd $pose
+	cd $lig
 	echo $(sbatch --parsable SLURMM-run) > job.id
 	cd ..
 done
 
 # check the eq for each pose
-
-for pose in pose*
+lig_array=()
+for lig in ligand*
 do
-	cd $pose
-	srun -N 1 -n 1 -p g2 -J check_eq -d afterany:$(cat job.id) echo "${pose} eq is done!"
-	cd ..
+	lig_array+=($lig)
 done
+
+last_lig=${lig_array[-1]}
+
+cd ${last_lig}
+srun -N 1 -n 1 -p g2 -J check_eq -d afterany:$(cat job.id) echo "${last_lig} eq is done!"
+cd ..
 
 cd ../
 
@@ -35,23 +39,22 @@ python /home/eric_clyang521_gmail_com/github/abfe/BAT/BAT.py -i input-sdr-openmm
 
 cd fe/
 
-for pose in pose*
+for lig in ligand*
 do
-	cd $pose
+	cd $lig
 	bash run-op-express.bash
 	cd ../
 done
 
 # check if fe jobs are finished
 
-for pose in pose*
-do
-	cd $pose
-	dependency_ids=$(cat job_ids | awk '{print $NF}' | paste -sd:)
-	echo "The fe job ids for ${pose}: ${dependency_ids}"
-	srun -N 1 -n 1 -p g2 -J check_fe -d afterany:${dependency_ids} echo "$pose fe is done"
-	cd ..
-done
+
+cd ${last_lig}
+dependency_ids=$(cat job_ids | awk '{print $NF}' | paste -sd:)
+echo "The fe job ids for last ligand ${lats_lig}: ${dependency_ids}"
+srun -N 1 -n 1 -p g2 -J check_fe -d afterany:${dependency_ids} echo "${last_lig} fe is done"
+cd ..
+
 cd ../
 
 python /home/eric_clyang521_gmail_com/github/abfe/BAT/BAT.py -i input-sdr-openmm.in -s analysis 

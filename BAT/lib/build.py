@@ -12,13 +12,13 @@ from lib.scripts import BAT_DIR
 import pathlib
 from rdkit import Chem
 
-def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ligand_ff, ligand_ph, retain_lig_prot, ligand_charge, other_mol, solv_shell, cofactor_name, cofactor_charge):
+def build_equil(lig_name, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ligand_ff, ligand_ph, retain_lig_prot, ligand_charge, other_mol, solv_shell, cofactor_name, cofactor_charge):
 
 
     # get the parameters for cofactor
     print("Entering build_equil function")
     if cofactor_name:
-      os.chdir('all-poses')
+      os.chdir('input')
 
       if not os.path.exists(f"{cofactor_name.lower()}.frcmod"):
         print(f"Run antechamber for {cofactor_name} at dir: {os.getcwd()} ")
@@ -51,10 +51,10 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
     if not os.path.exists('equil'):
       os.makedirs('equil')
     os.chdir('equil')
-    if os.path.exists(f'./build_files_{pose}'):
-      shutil.rmtree(f'./build_files_{pose}')
+    if os.path.exists(f'./build_files_{lig_name}'):
+      shutil.rmtree(f'./build_files_{lig_name}')
     try:
-      shutil.copytree(f'{BAT_DIR}/build_files', f'./build_files_{pose}')
+      shutil.copytree(f'{BAT_DIR}/build_files', f'./build_files_{lig_name}')
     # Directories are the same
     except shutil.Error as e:
       print('Directory not copied. Error: %s' % e)
@@ -63,23 +63,16 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
       print('Directory not copied. Error: %s' % e)
     
     print("Entering build_files directory")
-    os.chdir(f'build_files_{pose}') 
+    os.chdir(f'build_files_{lig_name}') 
 
 
-    if calc_type == 'dock':
-      shutil.copy('../../all-poses/%s_docked.pdb' %(celp_st), './reference.pdb')
-      shutil.copy('../../all-poses/%s_docked.pdb' %(celp_st), './rec_file.pdb')
-      shutil.copy('../../all-poses/%s.sdf' %(pose), './')
-      if cofactor_name:
-        shutil.copy(f'../../all-poses/cofactor.pdb','./')
-    elif calc_type == 'crystal':    
-      shutil.copy('../../all-poses/%s.pdb' %(pose), './')
-      # Replace names and run initial VMD script
-      with open("prep-crystal.tcl", "rt") as fin:
-        with open("prep.tcl", "wt") as fout:
-          for line in fin:
-            fout.write(line.replace('MMM', mol).replace('mmm', mol.lower()).replace('CCCC', pose))
-      sp.call('vmd -dispdev text -e prep.tcl', shell=True)
+   
+    shutil.copy(f'../../input/{celp_st}', './reference.pdb')
+    shutil.copy(f'../../input/{celp_st}', './rec_file.pdb')
+    shutil.copy('../../input/%s.sdf' %(lig_name), './')
+    if cofactor_name:
+      shutil.copy(f'../../input/cofactor.pdb','./')
+  
  
     # Split initial receptor file
     with open("split-ini.tcl", "rt") as fin:
@@ -160,9 +153,9 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
     shutil.copy('./dum.mol2', '../ff/')
     shutil.copy('./dum.frcmod', '../ff/')
 
-    for file in glob.glob("../../all-poses/*mol2"):
+    for file in glob.glob("../../input/*mol2"):
        shutil.copy(file, '../ff/')
-    for file in glob.glob("../../all-poses/*frcmod"):
+    for file in glob.glob("../../input/*frcmod"):
        shutil.copy(file,"../ff/")
        
 
@@ -175,17 +168,17 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
         ligand_charge = 0
         print(f"evaluate the ligand charge: {pathlib.Path('.').resolve()}")
 
-        molecule = Chem.SDMolSupplier(f"{pose}.sdf")[0]
+        molecule = Chem.SDMolSupplier(f"{lig_name}.sdf")[0]
         ligand_charge = Chem.GetFormalCharge(molecule)
 
-      print('The net charge of the ligand is %d' %ligand_charge)
+      print(f'The net charge of the {lig_name} is {ligand_charge}')
       if calc_type == 'dock':
-        shutil.copy('./'+pose+'.sdf', './'+mol.lower()+'-h.sdf')
+        shutil.copy('./'+ lig_name +'.sdf', './'+mol.lower()+'-h.sdf')
       elif calc_type == 'crystal':
         shutil.copy('./'+mol.lower()+'.pdb', './'+mol.lower()+'-h.pdb')
     else:
-      shutil.copy('./'+pose+'.pdb', './'+mol.lower()+'-h-ini.pdb')
-      shutil.copy('./'+pose+'.pdb','./'+mol.lower()+'.pdb')
+      shutil.copy('./'+ lig_name +'.pdb', './'+mol.lower()+'-h-ini.pdb')
+      shutil.copy('./'+ lig_name +'.pdb','./'+mol.lower()+'.pdb')
 
       sp.call('obabel -i pdb '+mol.lower()+'.pdb -o mol2 -O '+mol.lower()+'-crg.mol2 -p %4.2f' %ligand_ph, shell=True)
       # Clean ligand protonated pdb file
@@ -209,12 +202,11 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
       print('The net charge of the ligand is %d' %ligand_charge)
 
 
-    print(f'Antechamber parameter for {pose}: antechamber -i '+mol.lower()+'-h.sdf -fi sdf -o '+mol.lower()+'.mol2 -fo mol2 -c bcc -s 2 -at '+ligand_ff.lower()+' -nc %d' % ligand_charge)
+    print(f'Antechamber parameter for {lig_name}: antechamber -i '+mol.lower()+'-h.sdf -fi sdf -o '+mol.lower()+'.mol2 -fo mol2 -c bcc -s 2 -at '+ligand_ff.lower()+' -nc %d' % ligand_charge)
     sp.call('antechamber -i '+mol.lower()+'-h.sdf -fi sdf -o '+mol.lower()+f'.mol2 -fo mol2 -c bcc -s 2 -rn {mol} -at '+ligand_ff.lower()+' -nc %d' % ligand_charge, shell=True)
     sp.call('parmchk2 -i '+mol.lower()+'.mol2 -f mol2 -o '+mol.lower()+'.frcmod -s 2', shell=True)
 
     molecule = Chem.SDMolSupplier(f"{mol.lower()}-h.sdf")[0]
-    #Chem.EmbedMolecule(molecule)
     blk=Chem.MolToPDBBlock(molecule)
 
     with open(f"{mol.lower()}_temp.pdb","w+") as fh:
@@ -223,6 +215,10 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
     with open(f'{mol.lower()}.pdb',"w+") as fh:
        ori_string = open(f"{mol.lower()}_temp.pdb","r").read()
        new_string=ori_string.replace('UNL',mol)
+       # RDKit unintentionally changes atomtype during sdf -> pdb format convert, which casues issue in tleap
+       Atomtype={'BR':'Br'}
+       for element in Atomtype.keys():
+          new_string=new_string.replace(element,Atomtype[element])
        fh.write(new_string)
        
 
@@ -245,8 +241,9 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
 
     # Align to reference structure using lovoalign
    
-    print(f"The current directory: {os.getcwd()}")
+   
     sp.call('lovoalign -p1 complex.pdb -p2 reference.pdb -o aligned.pdb', shell=True)
+    print(f"The current directory: {os.getcwd()}")
 
     # Put in AMBER format and find ligand anchor atoms
     with open('aligned.pdb', 'r') as oldfile, open('aligned-clean.pdb', 'w') as newfile:
@@ -266,21 +263,21 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
     for line in f:
       splitdata = line.split()
       if len(splitdata) < 3:
-        os.rename('./anchors.txt', 'anchors-'+pose+'.txt')
+        os.rename('./anchors.txt', 'anchors-' +lig_name+'.txt')
         os.chdir('../')
         return 'anch2'
-    os.rename('./anchors.txt', 'anchors-'+pose+'.txt')
+    os.rename('./anchors.txt', 'anchors-'+ lig_name +'.txt')
     os.chdir('../')
 
     # Create simulation directory
-    if not os.path.exists(pose):
-      os.makedirs(pose)
-    os.chdir(pose)
+    if not os.path.exists(lig_name):
+      os.makedirs(lig_name)
+    os.chdir(lig_name)
 
     # copy the cofactor mol2 and frcmod files to each pose dir
     if cofactor_name:
-      shutil.copy(f"../../all-poses/{cofactor_name.lower()}.mol2", "./")
-      shutil.copy(f"../../all-poses/{cofactor_name.lower()}.frcmod", "./")
+      shutil.copy(f"../../input/{cofactor_name.lower()}.mol2", "./")
+      shutil.copy(f"../../input/{cofactor_name.lower()}.frcmod", "./")
 
 
     dum_coords = []
@@ -312,15 +309,15 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
     resname_lig = mol
 
     # Copy a few files
-    shutil.copy(f'../build_files_{pose}/equil-%s.pdb' %mol.lower(), './')
-    shutil.copy(f'../build_files_{pose}/%s-noh.pdb' %mol.lower(), './%s.pdb' %mol.lower())
-    shutil.copy(f'../build_files_{pose}/anchors-'+pose+'.txt', './anchors.txt')
-    shutil.copy(f'../build_files_{pose}/{mol.lower()}.mol2','./')
-    shutil.copy(f'../build_files_{pose}/{mol.lower()}.frcmod','./')
+    shutil.copy(f'../build_files_{lig_name}/equil-%s.pdb' %mol.lower(), './')
+    shutil.copy(f'../build_files_{lig_name}/%s-noh.pdb' %mol.lower(), './%s.pdb' %mol.lower())
+    shutil.copy(f'../build_files_{lig_name}/anchors-'+lig_name+'.txt', './anchors.txt')
+    shutil.copy(f'../build_files_{lig_name}/{mol.lower()}.mol2','./')
+    shutil.copy(f'../build_files_{lig_name}/{mol.lower()}.frcmod','./')
 
     # Read coordinates for dummy atoms
     for i in range(1, 2):
-      shutil.copy(f'../build_files_{pose}/dum'+str(i)+'.pdb', './')
+      shutil.copy(f'../build_files_{lig_name}/dum'+str(i)+'.pdb', './')
       with open('dum'+str(i)+'.pdb') as dum_in:
         lines = (line.rstrip() for line in dum_in)
         lines = list(line for line in lines if line)
@@ -481,7 +478,7 @@ def build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_
     return 'all'
 
 
-def build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell):
+def build_dec(fwin, hmr, mol, lig_name, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell):
 
     print(f"entering build_dec function at dir: {os.getcwd()}")
 
@@ -507,11 +504,12 @@ def build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, nt
         print('Directory not copied. Error: %s' % e)
       os.chdir('../build_files')
       print(f"working on: {os.getcwd()}")
+      shutil.copy(f'../../../equil/build_files_{lig_name}/reference.pdb', './')
       # Get last state from equilibrium simulations
-      shutil.copy('../../../equil/'+pose+'/md%02d.rst7' %fwin, './')
-      for file in glob.glob('../../../equil/%s/full*.prmtop' %pose.lower()):
+      shutil.copy('../../../equil/'+ lig_name +'/md%02d.rst7' %fwin, './')
+      for file in glob.glob(f'../../../equil/{lig_name}/full*.prmtop'):
         shutil.copy(file, './')
-      for file in glob.glob('../../../equil/%s/vac*' %pose.lower()):
+      for file in glob.glob(f'../../../equil/{lig_name}/vac*'):
         shutil.copy(file, './')
       
       sp.call('cpptraj -p full.prmtop -y md%02d.rst7 -x rec_file.pdb' %fwin, shell=True)
@@ -544,7 +542,7 @@ def build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, nt
                   newfile.write(line)
 
       # Read protein anchors and size from equilibrium
-      with open('../../../equil/'+pose+'/equil-%s.pdb' % mol.lower(), 'r') as f:
+      with open('../../../equil/'+ lig_name +'/equil-%s.pdb' % mol.lower(), 'r') as f:
         data = f.readline().split()
         P1 = data[2].strip()
         P2 = data[3].strip()
@@ -568,6 +566,7 @@ def build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, nt
 
       # Align to reference structure using lovoalign
       sp.call('lovoalign -p1 complex.pdb -p2 reference.pdb -o aligned.pdb', shell=True)
+      print(f"current dir: {os.getcwd()}")
 
       # Put in AMBER format and find ligand anchor atoms
       with open('aligned.pdb', 'r') as oldfile, open('aligned-clean.pdb', 'w') as newfile:
@@ -587,14 +586,14 @@ def build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, nt
       for line in f:
         splitdata = line.split()
         if len(splitdata) < 3:
-          os.rename('./anchors.txt', 'anchors-'+pose+'.txt')
+          os.rename('./anchors.txt', 'anchors-'+ lig_name +'.txt')
           os.chdir('../')
           return 'anch2'
-      os.rename('./anchors.txt', 'anchors-'+pose+'.txt')
+      os.rename('./anchors.txt', 'anchors-'+ lig_name +'.txt')
 
       # Read ligand anchors obtained from VMD
       lig_resid = str(int(recep_last) + 2)
-      anchor_file = 'anchors-'+pose+'.txt'
+      anchor_file = 'anchors-'+ lig_name +'.txt'
       f = open(anchor_file, 'r')
       for line in f:
         splitdata = line.split()
@@ -618,8 +617,8 @@ def build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, nt
         shutil.copy(file, '../ff/')
       for file in glob.glob('../../../equil/ff/*.frcmod'):
         shutil.copy(file, '../ff/')
-      shutil.copy(f'../../../equil/build_files_{pose}/%s.mol2' %(mol.lower()), '../ff/')
-      shutil.copy(f'../../../equil/build_files_{pose}/%s.frcmod' %(mol.lower()), '../ff/')
+      shutil.copy(f'../../../equil/build_files_{lig_name}/%s.mol2' %(mol.lower()), '../ff/')
+      shutil.copy(f'../../../equil/build_files_{lig_name}/%s.frcmod' %(mol.lower()), '../ff/')
       shutil.copy('../../../equil/ff/dum.mol2', '../ff/')
       shutil.copy('../../../equil/ff/dum.frcmod', '../ff/')
 
@@ -700,7 +699,7 @@ def build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, nt
       shutil.copy('../../build_files/%s.pdb' %mol.lower(), './')
       shutil.copy('../../build_files/fe-%s.pdb' %mol.lower(), './build-ini.pdb')
       shutil.copy('../../build_files/fe-%s.pdb' %mol.lower(), './')
-      shutil.copy('../../build_files/anchors-'+pose+'.txt', './')
+      shutil.copy('../../build_files/anchors-'+ lig_name +'.txt', './')
       for file in glob.glob('../../ff/*.mol2'):
         shutil.copy(file, './')
       for file in glob.glob('../../ff/*.frcmod'):
@@ -965,7 +964,7 @@ def build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, nt
     
     return 'all'
 
-def create_box(comp, hmr, pose, mol, num_waters, water_model, ion_def, neut, buffer_x, buffer_y, buffer_z, stage, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, dec_method, other_mol, solv_shell):
+def create_box(comp, hmr, lig_name, mol, num_waters, water_model, ion_def, neut, buffer_x, buffer_y, buffer_z, stage, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, dec_method, other_mol, solv_shell):
     
     # Adjust buffers to solvation shell
     if stage == 'fe' and solv_shell != 0:
@@ -997,7 +996,7 @@ def create_box(comp, hmr, pose, mol, num_waters, water_model, ion_def, neut, buf
             s = s.replace('_step_', dt).replace('_ntpr_', ntpr).replace('_ntwr_', ntwr).replace('_ntwe_', ntwe).replace('_ntwx_', ntwx).replace('_cutoff_', cut).replace('_gamma_ln_', gamma_ln).replace('_barostat_', barostat).replace('_receptor_ff_', receptor_ff).replace('_ligand_ff_', ligand_ff)
           with open(fpath, "w") as f:
             f.write(s)
-      os.chdir(pose)
+      os.chdir(lig_name)
 
     # Copy tleap files that are used for restraint generation and analysis
     shutil.copy('../amber_files/tleap.in.amber16', 'tleap_vac.in')

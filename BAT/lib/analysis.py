@@ -402,6 +402,7 @@ def fe_openmm(components, temperature, pose, dec_method, rest, attach_rest, lamb
         resfile.write('%-20s %8.2f;    %3.2f\n' % ('Release ligand CF;', fe_c, sd_c))
         resfile.write('%-20s %8.2f;    %3.2f\n\n' % ('Release protein CF;', fe_r, sd_r))
         resfile.write('%-20s %8.2f;    %3.2f\n' % ('Binding free energy;', total_dd, sd_dd))
+        return total_dd, sd_dd
       # Merged results
       if fe_m != 0 or fe_n != 0:
         fe_rel = fe_bd + fe_n
@@ -416,6 +417,7 @@ def fe_openmm(components, temperature, pose, dec_method, rest, attach_rest, lamb
         resfile.write('%-20s %8.2f;    %3.2f\n' % ('Bulk Elect ('+dec_int.upper()+');', fe_f, sd_f))
         resfile.write('%-20s %8.2f;    %3.2f\n\n' % ('Release all;', fe_rel, sd_n))
         resfile.write('%-20s %8.2f;    %3.2f\n' % ('Binding free energy;', merged_dd, sd_merg_dd))
+        return merged_dd, sd_merg_dd
     if dec_method == 'sdr':
       if fe_t != 0 or fe_c != 0 or fe_r != 0 or fe_a != 0 or fe_l != 0:
         resfile.write('\n----------------------------------------------\n')
@@ -431,6 +433,7 @@ def fe_openmm(components, temperature, pose, dec_method, rest, attach_rest, lamb
         resfile.write('%-20s %8.2f;    %3.2f\n' % ('Release ligand CF;', fe_c, sd_c))
         resfile.write('%-20s %8.2f;    %3.2f\n\n' % ('Release protein CF;', fe_r, sd_r))
         resfile.write('%-20s %8.2f;    %3.2f\n' % ('Binding free energy;', total_sdr, sd_sdr))
+        return total_sdr, sd_sdr
       # Merged results
       if fe_m != 0 or fe_n != 0:
         fe_rel = fe_bd + fe_n
@@ -443,6 +446,8 @@ def fe_openmm(components, temperature, pose, dec_method, rest, attach_rest, lamb
         resfile.write('%-20s %8.2f;    %3.2f\n' % ('Lennard-Jones ('+dec_int.upper()+');', fe_vs, sd_vs))
         resfile.write('%-20s %8.2f;    %3.2f\n\n' % ('Release all;', fe_rel, sd_n))
         resfile.write('%-20s %8.2f;    %3.2f\n' % ('Binding free energy;', merged_sdr, sd_merg_sdr))
+        return merged_sdr, sd_merg_sdr
+      
     resfile.write('\n----------------------------------------------\n\n')
     resfile.write('Energies in kcal/mol\n\n')
     resfile.write('Total simulation time (based on input file): %6.1f nanoseconds\n\n' % total_time)

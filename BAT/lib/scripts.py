@@ -16,6 +16,22 @@ def help_message():
     print('Use the flags -i and -s for the input file and current stage of the calculations')
     print('Example: python BAT.py -i input.in -s equil')
 
+def check_input_files(input_dir, receptor_file, ligands_list, cofactor_file):
+    """
+    Check all files exist
+    """
+
+    assert pathlib.Path(f"{input_dir}/{receptor_file}").is_file(), f"{receptor_file} does not exist!"
+
+    if cofactor_file:
+        assert pathlib.Path(f"{input_dir/cofactor_file}").is_file(), f"{cofactor_file} does not exist!"
+    
+    for lig in ligands_list:
+        assert pathlib.Path(f"{input_dir}/{lig}.sdf").is_file(), f"{lig}.sdf does not exist!"
+    
+
+
+
 def write_tleap(mol, water_model, water_box, buff, buffer_x, buffer_y, other_mol, tleap_remove=None):
     shutil.copy('tleap.in', 'tmp_tleap.in')
     tmp_file = open('tmp_tleap.in', 'a')
