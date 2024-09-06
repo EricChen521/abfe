@@ -13,14 +13,14 @@ from lib import setup
 from lib import analysis
 import numpy as np 
 import pathlib
-
+from lib.scripts import check_input_files
 
 if BAT_DIR not in sys.path:
    sys.path.append(BAT_DIR)
 
 ion_def = []
-poses_list = []
-poses_def = []
+input_dir = pathlib.Path("./input").resolve()
+ligands_list = []
 release_eq = []
 attach_rest = []
 lambdas = []  
@@ -102,6 +102,7 @@ ntwx = '2500'
 cut = '9.0'                  
 barostat = '2'               
 ti_points = 0
+calc_type = "dock"
 
 # Read arguments that define input file and stage
 if len(sys.argv) < 5:
@@ -139,6 +140,8 @@ for i in range(0, len(lines)):
            cofactor_charge = lines[i][1]    
         elif lines[i][0] == "cofactor_name":
           cofactor_name = lines[i][1] 
+        elif lines[i][0] == "input_dir":
+           input_dir = pathlib.Path(f"./{lines[i][1]}").resolve()
         elif lines[i][0] == 'eq_steps1':
             eq_steps1 = scripts.check_input('int', lines[i][1], input_file, lines[i][0]) 
         elif lines[i][0] == 'eq_steps2':
@@ -239,10 +242,10 @@ for i in range(0, len(lines)):
         ####
         elif lines[i][0] == 'ti_points':
             ti_points = scripts.check_input('int', lines[i][1], input_file, lines[i][0]) 
-        elif lines[i][0] == 'poses_list':
+        elif lines[i][0] == 'ligands_list':
             newline = lines[i][1].strip('\'\"-,.:;#()][').split(',')
             for j in range(0, len(newline)):
-                poses_list.append(scripts.check_input('int', newline[j], input_file, lines[i][0]))
+                ligands_list.append(newline[j].strip())
         elif lines[i][0] == 'other_mol':
             newline = lines[i][1].strip('\'\"-,.:;#()][').split(',')
             for j in range(0, len(newline)):
@@ -516,12 +519,6 @@ if rec_bb == 'no':
   bb_end = [0]
   bb_equil = 'no'
 
-# Create poses definitions
-if calc_type == 'dock':
-  for i in range(0, len(poses_list)):
-    poses_def.append('pose'+str(poses_list[i]))
-elif calc_type == 'crystal':
-  poses_def = [celp_st]
 
 # Create restraint definitions
 rest = [rec_dihcf_force, rec_discf_force, lig_distance_force, lig_angle_force, lig_dihcf_force, rec_com_force, lig_com_force]
@@ -626,13 +623,14 @@ if software == 'openmm' and stage == 'fe':
   dt = str(float(dt)*1000)
   cut = str(float(cut)/10)
 
-  # Convert equil output file
+  # Check all input files exist
+  check_input_files(input_dir, celp_st, ligands_list, f"{cofactor_name}.sdf" if cofactor_name else None)
+  
   os.chdir('equil')
-  for i in range(0, len(poses_def)):
-    pose = poses_def[i]
+  for lig_name in ligands_list:
     rng = len(release_eq) - 1
-    if os.path.exists(pose):
-      os.chdir(pose)
+    if os.path.exists(lig_name):
+      os.chdir(lig_name)
       convert_file = open('convert.in', 'w')
       convert_file.write('parm full.prmtop\n')
       convert_file.write('trajin md%02d.dcd lastframe\n' %rng)
@@ -648,39 +646,39 @@ if stage == 'equil':
   comp = 'q'
   win = 0
   print("Entering buidling equil dir:")
-  print(f"pose_def: {poses_def}")
+  print(f"ligands_list: {ligands_list}")
   # Create equilibrium systems for all poses listed in the input file
-  for i in range(0, len(poses_def)):
+  for lig_name in ligands_list:
     rng = len(release_eq) - 1
-    pose = poses_def[i]
-    if not os.path.exists('./all-poses/'+pose+'.sdf'):
-      print(f"{pose}.sdf file does not exist")
+    lig_fpath = pathlib.Path(f"{input_dir}/{lig_name}.sdf").resolve()
+    if not lig_fpath.is_file():
+      print(f"{lig_fpath} does not exist")
       continue
-    print('Setting up '+str(poses_def[i]))
+    print('Setting up '+str(lig_name))
     # Get number of simulations
     num_sim = len(release_eq)
     # Create aligned initial complex
-    anch = build.build_equil(pose, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ligand_ff, ligand_ph, retain_lig_prot, ligand_charge, other_mol, solv_shell, cofactor_name,cofactor_charge)
+    anch = build.build_equil(lig_name, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ligand_ff, ligand_ph, retain_lig_prot, ligand_charge, other_mol, solv_shell, cofactor_name,cofactor_charge)
     if anch == 'anch1':
-      aa1_poses.append(pose)
+      aa1_poses.append(lig_name)
       os.chdir('../')
       continue
     if anch == 'anch2':
-      aa2_poses.append(pose)
+      aa2_poses.append(lig_name)
       os.chdir('../')
       continue
     # Solvate system with ions
     print('Creating box...')
-    build.create_box(comp, hmr, pose, mol, num_waters, water_model, ion_def, neut, buffer_x, buffer_y, buffer_z, stage, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, dec_method, other_mol, solv_shell)
+    build.create_box(comp, hmr, lig_name, mol, num_waters, water_model, ion_def, neut, buffer_x, buffer_y, buffer_z, stage, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, dec_method, other_mol, solv_shell)
     # Apply restraints and prepare simulation files
     print('Equil release weights:')
     for i in range(0, len(release_eq)):
       weight = release_eq[i]
       print('%s' %str(weight))
-      setup.restraints(pose, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
-      shutil.copy('./'+pose+'/disang.rest', './'+pose+'/disang%02d.rest' %int(i))
-    shutil.copy('./'+pose+'/disang%02d.rest' %int(0), './'+pose+'/disang.rest')
-    setup.sim_files(hmr, temperature, mol, num_sim, pose, comp, win, stage, eq_steps1, eq_steps2, rng)
+      setup.restraints(lig_name, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
+      shutil.copy('./'+lig_name+'/disang.rest', './'+lig_name+'/disang%02d.rest' %int(i))
+    shutil.copy('./'+lig_name+'/disang%02d.rest' %int(0), './'+lig_name+'/disang.rest')
+    setup.sim_files(hmr, temperature, mol, num_sim, lig_name, comp, win, stage, eq_steps1, eq_steps2, rng)
     os.chdir('../')
   if len(aa1_poses) != 0:
     print('\n')
@@ -699,16 +697,15 @@ elif stage == 'fe':
   if not os.path.exists('fe'):
     os.makedirs('fe')
   os.chdir('fe')
-  for i in range(0, len(poses_def)):
-    pose = poses_def[i]
+  for lig_name in ligands_list:
     fwin = len(release_eq) - 1
-    if not os.path.exists('../equil/'+pose):
+    if not os.path.exists('../equil/'+lig_name):
       continue
-    print('Setting up '+str(poses_def[i]))
+    print('Setting up '+str(lig_name))
     # Create and move to pose directory
-    if not os.path.exists(pose):
-      os.makedirs(pose)
-    os.chdir(pose)
+    if not os.path.exists(lig_name):
+      os.makedirs(lig_name)
+    os.chdir(lig_name)
     # Generate folder and restraints for all components and windows
     for j in range(0, len(components)):
       comp = components[j]
@@ -722,22 +719,22 @@ elif stage == 'fe':
           win = k
           if int(win) == 0:
             print('window: %s%02d weight: %s' %(comp, int(win), str(weight)))
-            anch = build.build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
+            anch = build.build_dec(fwin, hmr, mol, lig_name, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
             if anch == 'anch1':
-              aa1_poses.append(pose)
+              aa1_poses.append(lig_name)
               break
             if anch == 'anch2':
-              aa2_poses.append(pose)
+              aa2_poses.append(lig_name)
               break
             print('Creating box for ligand only...')
             build.ligand_box(mol, lig_buffer, water_model, neut, ion_def, comp, ligand_ff)
-            setup.restraints(pose, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
-            setup.sim_files(hmr, temperature, mol, num_sim, pose, comp, win, stage, c_steps1, c_steps2, rng)
+            setup.restraints(lig_name, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
+            setup.sim_files(hmr, temperature, mol, num_sim, lig_name, comp, win, stage, c_steps1, c_steps2, rng)
           else:
             print('window: %s%02d weight: %s' %(comp, int(win), str(weight)))
-            build.build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
-            setup.restraints(pose, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
-            setup.sim_files(hmr, temperature, mol, num_sim, pose, comp, win, stage, c_steps1, c_steps2, rng)
+            build.build_dec(fwin, hmr, mol, lig_name, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
+            setup.restraints(lig_name, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
+            setup.sim_files(hmr, temperature, mol, num_sim, lig_name, comp, win, stage, c_steps1, c_steps2, rng)
         if anch != 'all':  
           break
         os.chdir('../')  
@@ -753,22 +750,22 @@ elif stage == 'fe':
           win = k
           if int(win) == 0:
             print('window: %s%02d weight: %s' %(comp, int(win), str(weight)))
-            anch = build.build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
+            anch = build.build_dec(fwin, hmr, mol, lig_name, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
             if anch == 'anch1':
-              aa1_poses.append(pose)
+              aa1_poses.append(lig_name)
               break
             if anch == 'anch2':
-              aa2_poses.append(pose)
+              aa2_poses.append(lig_name)
               break
             print('Creating box for protein/simultaneous release...')
-            build.create_box(comp, hmr, pose, mol, num_waters, water_model, ion_def, neut, buffer_x, buffer_y, buffer_z, stage, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, dec_method, other_mol, solv_shell)
-            setup.restraints(pose, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
-            setup.sim_files(hmr, temperature, mol, num_sim, pose, comp, win, stage, steps1, steps2, rng)
+            build.create_box(comp, hmr, lig_name, mol, num_waters, water_model, ion_def, neut, buffer_x, buffer_y, buffer_z, stage, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, dec_method, other_mol, solv_shell)
+            setup.restraints(lig_name, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
+            setup.sim_files(hmr, temperature, mol, num_sim, lig_name, comp, win, stage, steps1, steps2, rng)
           else:
             print('window: %s%02d weight: %s' %(comp, int(win), str(weight)))
-            build.build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
-            setup.restraints(pose, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
-            setup.sim_files(hmr, temperature, mol, num_sim, pose, comp, win, stage, steps1, steps2, rng)
+            build.build_dec(fwin, hmr, mol, lig_name, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
+            setup.restraints(lig_name, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
+            setup.sim_files(hmr, temperature, mol, num_sim, lig_name, comp, win, stage, steps1, steps2, rng)
         if anch != 'all':  
           break
         os.chdir('../')  
@@ -784,19 +781,19 @@ elif stage == 'fe':
           win = k
           print('window: %s%02d lambda: %s' %(comp, int(win), str(weight)))
           if int(win) == 0:
-            anch = build.build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
+            anch = build.build_dec(fwin, hmr, mol, lig_name, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
             if anch == 'anch1':
-              aa1_poses.append(pose)
+              aa1_poses.append(lig_name)
               break
             if anch == 'anch2':
-              aa2_poses.append(pose)
+              aa2_poses.append(lig_name)
               break
-            build.create_box(comp, hmr, pose, mol, num_waters, water_model, ion_def, neut, buffer_x, buffer_y, buffer_z, stage, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, dec_method, other_mol, solv_shell)
-            setup.restraints(pose, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
-            setup.dec_files(temperature, mol, num_sim, pose, comp, win, stage, steps1, steps2, weight, lambdas, dec_method, ntwx)
+            build.create_box(comp, hmr, lig_name, mol, num_waters, water_model, ion_def, neut, buffer_x, buffer_y, buffer_z, stage, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, dec_method, other_mol, solv_shell)
+            setup.restraints(lig_name, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
+            setup.dec_files(temperature, mol, num_sim, lig_name, comp, win, stage, steps1, steps2, weight, lambdas, dec_method, ntwx)
           else:
-            build.build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
-            setup.dec_files(temperature, mol, num_sim, pose, comp, win, stage, steps1, steps2, weight, lambdas, dec_method, ntwx)
+            build.build_dec(fwin, hmr, mol, lig_name, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
+            setup.dec_files(temperature, mol, num_sim, lig_name, comp, win, stage, steps1, steps2, weight, lambdas, dec_method, ntwx)
         if anch != 'all':  
           break
         os.chdir('../')  
@@ -812,21 +809,21 @@ elif stage == 'fe':
           win = k
           if int(win) == 0:
             print('window: %s%02d lambda: %s' %(comp, int(win), str(weight)))
-            anch = build.build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
+            anch = build.build_dec(fwin, hmr, mol, lig_name, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
             if anch == 'anch1':
-              aa1_poses.append(pose)
+              aa1_poses.append(lig_name)
               break
             if anch == 'anch2':
-              aa2_poses.append(pose)
+              aa2_poses.append(lig_name)
               break
             print('Creating box for ligand decoupling in bulk...')
             build.ligand_box(mol, lig_buffer, water_model, neut, ion_def, comp, ligand_ff)
-            setup.restraints(pose, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
-            setup.dec_files(temperature, mol, num_sim, pose, comp, win, stage, steps1, steps2, weight, lambdas, dec_method, ntwx)
+            setup.restraints(lig_name, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
+            setup.dec_files(temperature, mol, num_sim, lig_name, comp, win, stage, steps1, steps2, weight, lambdas, dec_method, ntwx)
           else:
             print('window: %s%02d lambda: %s' %(comp, int(win), str(weight)))
-            build.build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
-            setup.dec_files(temperature, mol, num_sim, pose, comp, win, stage, steps1, steps2, weight, lambdas, dec_method, ntwx)
+            build.build_dec(fwin, hmr, mol, lig_name, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
+            setup.dec_files(temperature, mol, num_sim, lig_name, comp, win, stage, steps1, steps2, weight, lambdas, dec_method, ntwx)
         if anch != 'all':  
           break
         os.chdir('../')
@@ -842,23 +839,23 @@ elif stage == 'fe':
           win = k
           if win == 0:
             print('window: %s%02d weight: %s' %(comp, int(win), str(weight)))
-            anch = build.build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
+            anch = build.build_dec(fwin, hmr, mol, lig_name, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
             if anch == 'anch1':
-              aa1_poses.append(pose)
+              aa1_poses.append(lig_name)
               break
             if anch == 'anch2':
-              aa2_poses.append(pose)
+              aa2_poses.append(lig_name)
               break
             if anch != 'altm':
               print('Creating box for attaching restraints...')
-              build.create_box(comp, hmr, pose, mol, num_waters, water_model, ion_def, neut, buffer_x, buffer_y, buffer_z, stage, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, dec_method, other_mol, solv_shell)
-            setup.restraints(pose, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
-            setup.sim_files(hmr, temperature, mol, num_sim, pose, comp, win, stage, steps1, steps2, rng)
+              build.create_box(comp, hmr, lig_name, mol, num_waters, water_model, ion_def, neut, buffer_x, buffer_y, buffer_z, stage, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, dec_method, other_mol, solv_shell)
+            setup.restraints(lig_name, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
+            setup.sim_files(hmr, temperature, mol, num_sim, lig_name, comp, win, stage, steps1, steps2, rng)
           else:
             print('window: %s%02d weight: %s' %(comp, int(win), str(weight)))
-            build.build_dec(fwin, hmr, mol, pose, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
-            setup.restraints(pose, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
-            setup.sim_files(hmr, temperature, mol, num_sim, pose, comp, win, stage, steps1, steps2, rng)
+            build.build_dec(fwin, hmr, mol, lig_name, comp, win, water_model, ntpr, ntwr, ntwe, ntwx, cut, gamma_ln, barostat, receptor_ff, ligand_ff, dt, sdr_dist, dec_method, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ion_def, other_mol, solv_shell)
+            setup.restraints(lig_name, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil, sdr_dist, dec_method, other_mol)
+            setup.sim_files(hmr, temperature, mol, num_sim, lig_name, comp, win, stage, steps1, steps2, rng)
         if anch == 'anch1' or anch == 'anch2':
           break
         os.chdir('../')  
@@ -879,16 +876,15 @@ elif stage == 'fe':
 elif stage == 'analysis':
   # Free energy analysis for OpenMM
   if software == 'openmm':
-    for i in range(0, len(poses_def)):
-      pose = poses_def[i]
-      analysis.fe_openmm(components, temperature, pose, dec_method, rest, attach_rest, lambdas, dic_itera1, dic_itera2, itera_steps, dt, dlambda, dec_int, weights, blocks)
+    for lig_name in ligands_list:
+      dG, sd = analysis.fe_openmm(components, temperature, lig_name, dec_method, rest, attach_rest, lambdas, dic_itera1, dic_itera2, itera_steps, dt, dlambda, dec_int, weights, blocks)
       os.chdir('../../')
-      print(f"Analysis for {pose} completed successfully!")
+      print(f"{lig_name}:\n\tBinding free energy: {round(dG,2)} +/- {round(sd,2)} kal/mol;")
+
   else: 
   # Free energy analysis for AMBER20
-    for i in range(0, len(poses_def)):
-      pose = poses_def[i]
-      analysis.fe_values(blocks, components, temperature, pose, attach_rest, lambdas, weights, dec_int, dec_method, rest, dic_steps1, dic_steps2, dt)
+    for lig_name in ligands_list:
+      analysis.fe_values(blocks, components, temperature, lig_name, attach_rest, lambdas, weights, dec_int, dec_method, rest, dic_steps1, dic_steps2, dt)
       os.chdir('../../')
 
 
@@ -901,26 +897,25 @@ if software == 'openmm' and stage == 'equil':
   dt = str(float(dt)*1000)
 
   os.chdir('equil')
-  for i in range(0, len(poses_def)):
-    pose = poses_def[i]
+  for lig_name in ligands_list:
     rng = len(release_eq) - 1
-    if os.path.exists(pose):
-      print(pose)
-      shutil.move(pose, pose+'-amber')
-      os.mkdir(pose)
-      os.chdir(pose)
-      shutil.copy('../'+pose+'-amber/equil-%s.pdb' % mol.lower(), './')
-      shutil.copy('../'+pose+'-amber/cv.in', './')
-      shutil.copy('../'+pose+'-amber/assign.dat', './')
-      for file in glob.glob('../'+pose+'-amber/vac*'):
+    if os.path.exists(lig_name):
+      print(lig_name)
+      shutil.move(lig_name, lig_name+'-amber')
+      os.mkdir(lig_name)
+      os.chdir(lig_name)
+      shutil.copy('../'+lig_name+'-amber/equil-%s.pdb' % mol.lower(), './')
+      shutil.copy('../'+lig_name+'-amber/cv.in', './')
+      shutil.copy('../'+lig_name+'-amber/assign.dat', './')
+      for file in glob.glob('../'+lig_name+'-amber/vac*'):
         shutil.copy(file, './')
-      for file in glob.glob('../'+pose+'-amber/full*'):
+      for file in glob.glob('../'+lig_name+'-amber/full*'):
         shutil.copy(file, './')
-      for file in glob.glob('../'+pose+'-amber/disang*'):
+      for file in glob.glob('../'+lig_name+'-amber/disang*'):
         shutil.copy(file, './')
-      for file in glob.glob('../'+pose+'-amber/build*'):
+      for file in glob.glob('../'+lig_name+'-amber/build*'):
         shutil.copy(file, './')
-      for file in glob.glob('../'+pose+'-amber/tleap_solvate*'):
+      for file in glob.glob('../'+lig_name+'-amber/tleap_solvate*'):
         shutil.copy(file, './')
       fin = open(f'{BAT_DIR}/run_files/local-equil-op.bash', "rt")
       data = fin.read()
@@ -931,14 +926,14 @@ if software == 'openmm' and stage == 'equil':
       fin.close()
       fin = open(f'{BAT_DIR}/run_files/PBS-Op', "rt")
       data = fin.read()
-      data = data.replace('STAGE', stage).replace('POSE', pose) 
+      data = data.replace('STAGE', stage).replace('POSE', lig_name) 
       fin.close()
       fin = open('PBS-run', "wt")
       fin.write(data)
       fin.close()
       fin = open(f'{BAT_DIR}/run_files/SLURMM-Op', "rt")
       data = fin.read()
-      data = data.replace('STAGE', stage[0]).replace('POSE', pose[-1]) 
+      data = data.replace('STAGE', stage[0]).replace('POSE', lig_name) 
       fin.close()
       fin = open('SLURMM-run', "wt")
       fin.write(data)
@@ -960,7 +955,7 @@ if software == 'openmm' and stage == 'equil':
         fin.write(data)
         fin.close()
       os.chdir('../')
-      shutil.rmtree('./'+pose+'-amber') 
+      shutil.rmtree('./'+lig_name+'-amber') 
   print("Equil stage setup  is completed successfully!")
 
 if software == 'openmm' and stage == 'fe':
@@ -995,10 +990,10 @@ if software == 'openmm' and stage == 'fe':
   print('')
 
   # Generate folder and restraints for all components and windows
-  for i in range(0, len(poses_def)):
-    if not os.path.exists(poses_def[i]):
+  for lig_name in ligands_list:
+    if not os.path.exists(lig_name):
       continue
-    os.chdir(poses_def[i])
+    os.chdir(lig_name)
     # copy the slurm run scirpt to each pose dir
     shutil.copyfile(f"{BAT_DIR}/run_files/run-op-express.bash",'./run-op-express.bash')
     for j in range(0, len(components)):
@@ -1015,14 +1010,14 @@ if software == 'openmm' and stage == 'fe':
           shutil.copy(f'{BAT_DIR}/run_files/local-rest-op.bash', './run-local.bash')
           fin = open(f'{BAT_DIR}/run_files/PBS-Op', "rt")
           data = fin.read()
-          data = data.replace('POSE', comp).replace('STAGE', poses_def[i]) 
+          data = data.replace('POSE', comp).replace('STAGE', lig_name) 
           fin.close()
           fin = open('PBS-run', "wt")
           fin.write(data)
           fin.close()
           fin = open(f'{BAT_DIR}/run_files/SLURMM-Op', "rt")
           data = fin.read()
-          data = data.replace('POSE', comp).replace('STAGE', 'p' + poses_def[i].split('pose')[-1]) 
+          data = data.replace('POSE', comp).replace('STAGE', 'p' + lig_name) 
           fin.close()
           fin = open('SLURMM-run', "wt")
           fin.write(data)
@@ -1039,36 +1034,36 @@ if software == 'openmm' and stage == 'fe':
           fin.write(data)
           fin.close()
           if comp == 'c':
-            shutil.copy('../../../../'+stage+'/'+poses_def[i]+'/rest/c00/disang.rest', './')
-            for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/c00/full*'):
+            shutil.copy('../../../../'+stage+'/'+lig_name+'/rest/c00/disang.rest', './')
+            for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/c00/full*'):
               shutil.copy(file, './')
-            for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/c00/vac*'):
+            for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/c00/vac*'):
               shutil.copy(file, './')
-            for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/c00/build*'):
+            for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/c00/build*'):
               shutil.copy(file, './')
-            for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/c00/tleap_solvate*'):
+            for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/c00/tleap_solvate*'):
               shutil.copy(file, './')
           elif comp == 'n':
-            shutil.copy('../../../../'+stage+'/'+poses_def[i]+'/rest/n00/disang.rest', './')
-            shutil.copy('../../../../'+stage+'/'+poses_def[i]+'/rest/n00/cv.in', './')
-            for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/n00/full*'):
+            shutil.copy('../../../../'+stage+'/'+lig_name+'/rest/n00/disang.rest', './')
+            shutil.copy('../../../../'+stage+'/'+lig_name+'/rest/n00/cv.in', './')
+            for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/n00/full*'):
               shutil.copy(file, './')
-            for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/n00/vac*'):
+            for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/n00/vac*'):
               shutil.copy(file, './')
-            for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/n00/build*'):
+            for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/n00/build*'):
               shutil.copy(file, './')
-            for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/n00/tleap_solvate*'):
+            for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/n00/tleap_solvate*'):
               shutil.copy(file, './')
           else:
-            shutil.copy('../../../../'+stage+'/'+poses_def[i]+'/rest/t00/disang.rest', './')
-            shutil.copy('../../../../'+stage+'/'+poses_def[i]+'/rest/t00/cv.in', './')
-            for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/t00/full*'):
+            shutil.copy('../../../../'+stage+'/'+lig_name+'/rest/t00/disang.rest', './')
+            shutil.copy('../../../../'+stage+'/'+lig_name+'/rest/t00/cv.in', './')
+            for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/t00/full*'):
               shutil.copy(file, './')
-            for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/t00/vac*'):
+            for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/t00/vac*'):
               shutil.copy(file, './')
-            for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/t00/build*'):
+            for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/t00/build*'):
               shutil.copy(file, './')
-            for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/t00/tleap_solvate*'):
+            for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/t00/tleap_solvate*'):
               shutil.copy(file, './')
           os.chdir('../../') 
       elif comp == 'e' or comp == 'v' or comp == 'w' or comp == 'f':
@@ -1085,14 +1080,14 @@ if software == 'openmm' and stage == 'fe':
             shutil.copy('../../../../run_files/local-sdr-op.bash', './run-local.bash')
             fin = open('../../../../run_files/PBS-Op', "rt")
             data = fin.read()
-            data = data.replace('POSE', comp).replace('STAGE', poses_def[i]) 
+            data = data.replace('POSE', comp).replace('STAGE', lig_name) 
             fin.close()
             fin = open('PBS-run', "wt")
             fin.write(data)
             fin.close()
             fin = open('../../../../run_files/SLURMM-Op', "rt")
             data = fin.read()
-            data = data.replace('POSE', comp).replace('STAGE', 'p' + poses_def[i].split('pose')[-1]) 
+            data = data.replace('POSE', comp).replace('STAGE', 'p' + lig_name) 
             fin.close()
             fin = open('SLURMM-run', "wt")
             fin.write(data)
@@ -1108,15 +1103,15 @@ if software == 'openmm' and stage == 'fe':
             fin = open('sdr.py', "wt")
             fin.write(data)
             fin.close()
-            shutil.copy('../../../../'+stage+'/'+poses_def[i]+'/sdr/v00/disang.rest', './')
-            shutil.copy('../../../../'+stage+'/'+poses_def[i]+'/sdr/v00/cv.in', './')
-            for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/sdr/v00/full*'):
+            shutil.copy('../../../../'+stage+'/'+lig_name+'/sdr/v00/disang.rest', './')
+            shutil.copy('../../../../'+stage+'/'+lig_name+'/sdr/v00/cv.in', './')
+            for file in glob.glob('../../../../'+stage+'/'+lig_name+'/sdr/v00/full*'):
               shutil.copy(file, './')
-            for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/sdr/v00/vac*'):
+            for file in glob.glob('../../../../'+stage+'/'+lig_name+'/sdr/v00/vac*'):
               shutil.copy(file, './')
-            for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/sdr/v00/tleap_solvate*'):
+            for file in glob.glob('../../../../'+stage+'/'+lig_name+'/sdr/v00/tleap_solvate*'):
               shutil.copy(file, './')
-            for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/sdr/v00/build*'):
+            for file in glob.glob('../../../../'+stage+'/'+lig_name+'/sdr/v00/build*'):
               shutil.copy(file, './')
             os.chdir('../') 
           elif dec_int == 'ti':
@@ -1132,14 +1127,14 @@ if software == 'openmm' and stage == 'fe':
               shutil.copy(f'{BAT_DIR}/run_files/local-sdr-op-ti.bash', './run-local.bash')
               fin = open(f'{BAT_DIR}/run_files/SLURMM-Op', "rt")
               data = fin.read()
-              data = data.replace('STAGE', 'p' + poses_def[i].split('pose')[-1]).replace('POSE', '%s%02d' %(comp, int(k)))
+              data = data.replace('STAGE', 'p' + lig_name).replace('POSE', '%s%02d' %(comp, int(k)))
               fin.close()
               fin = open("SLURMM-run", "wt")
               fin.write(data)
               fin.close()
               fin = open(f'{BAT_DIR}/run_files/PBS-Op', "rt")
               data = fin.read()
-              data = data.replace('STAGE', poses_def[i]).replace('POSE', '%s%02d' %(comp, int(k)))
+              data = data.replace('STAGE', lig_name).replace('POSE', '%s%02d' %(comp, int(k)))
               fin.close()
               fin = open("PBS-run", "wt")
               fin.write(data)
@@ -1169,15 +1164,15 @@ if software == 'openmm' and stage == 'fe':
               fin = open('sdr-ti.py', "wt")
               fin.write(data)
               fin.close()
-              shutil.copy('../../../../../'+stage+'/'+poses_def[i]+'/sdr/v00/disang.rest', './')
-              shutil.copy('../../../../../'+stage+'/'+poses_def[i]+'/sdr/v00/cv.in', './')
-              for file in glob.glob('../../../../../'+stage+'/'+poses_def[i]+'/sdr/v00/full*'):
+              shutil.copy('../../../../../'+stage+'/'+lig_name+'/sdr/v00/disang.rest', './')
+              shutil.copy('../../../../../'+stage+'/'+lig_name+'/sdr/v00/cv.in', './')
+              for file in glob.glob('../../../../../'+stage+'/'+lig_name+'/sdr/v00/full*'):
                 shutil.copy(file, './')
-              for file in glob.glob('../../../../../'+stage+'/'+poses_def[i]+'/sdr/v00/vac*'):
+              for file in glob.glob('../../../../../'+stage+'/'+lig_name+'/sdr/v00/vac*'):
                 shutil.copy(file, './')
-              for file in glob.glob('../../../../../'+stage+'/'+poses_def[i]+'/sdr/v00/tleap_solvate*'):
+              for file in glob.glob('../../../../../'+stage+'/'+lig_name+'/sdr/v00/tleap_solvate*'):
                 shutil.copy(file, './')
-              for file in glob.glob('../../../../../'+stage+'/'+poses_def[i]+'/sdr/v00/build*'):
+              for file in glob.glob('../../../../../'+stage+'/'+lig_name+'/sdr/v00/build*'):
                 shutil.copy(file, './')
               os.chdir('../') 
             os.chdir('../') 
@@ -1196,14 +1191,14 @@ if software == 'openmm' and stage == 'fe':
             shutil.copy('../../../../run_files/local-dd-op.bash', './run-local.bash')
             fin = open('../../../../run_files/PBS-Op', "rt")
             data = fin.read()
-            data = data.replace('POSE', comp).replace('STAGE', poses_def[i]) 
+            data = data.replace('POSE', comp).replace('STAGE', lig_name) 
             fin.close()
             fin = open('PBS-run', "wt")
             fin.write(data)
             fin.close()
             fin = open('../../../../run_files/SLURMM-Op', "rt")
             data = fin.read()
-            data = data.replace('POSE', comp).replace('STAGE', 'p' + poses_def[i].split('pose')[-1]) 
+            data = data.replace('POSE', comp).replace('STAGE', lig_name) 
             fin.close()
             fin = open('SLURMM-run', "wt")
             fin.write(data)
@@ -1220,25 +1215,25 @@ if software == 'openmm' and stage == 'fe':
             fin.write(data)
             fin.close()
             if comp == 'f' or comp == 'w':
-              shutil.copy('../../../../'+stage+'/'+poses_def[i]+'/rest/c00/disang.rest', './')
-              for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/c00/full*'):
+              shutil.copy('../../../../'+stage+'/'+lig_name+'/rest/c00/disang.rest', './')
+              for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/c00/full*'):
                 shutil.copy(file, './')
-              for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/c00/vac*'):
+              for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/c00/vac*'):
                 shutil.copy(file, './')
-              for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/c00/tleap_solvate*'):
+              for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/c00/tleap_solvate*'):
                 shutil.copy(file, './')
-              for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/c00/build*'):
+              for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/c00/build*'):
                 shutil.copy(file, './')
             else:
-              shutil.copy('../../../../'+stage+'/'+poses_def[i]+'/rest/t00/disang.rest', './')
-              shutil.copy('../../../../'+stage+'/'+poses_def[i]+'/rest/t00/cv.in', './')
-              for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/t00/full*'):
+              shutil.copy('../../../../'+stage+'/'+lig_name+'/rest/t00/disang.rest', './')
+              shutil.copy('../../../../'+stage+'/'+lig_name+'/rest/t00/cv.in', './')
+              for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/t00/full*'):
                 shutil.copy(file, './')
-              for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/t00/vac*'):
+              for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/t00/vac*'):
                 shutil.copy(file, './')
-              for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/t00/tleap_solvate*'):
+              for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/t00/tleap_solvate*'):
                 shutil.copy(file, './')
-              for file in glob.glob('../../../../'+stage+'/'+poses_def[i]+'/rest/t00/build*'):
+              for file in glob.glob('../../../../'+stage+'/'+lig_name+'/rest/t00/build*'):
                 shutil.copy(file, './')
             os.chdir('../') 
           elif dec_int == 'ti':
@@ -1254,14 +1249,14 @@ if software == 'openmm' and stage == 'fe':
               shutil.copy('../../../../../run_files/local-dd-op-ti.bash', './run-local.bash')
               fin = open('../../../../../run_files/SLURMM-Op', "rt")
               data = fin.read()
-              data = data.replace('STAGE', 'p' + poses_def[i].split('pose')[-1]).replace('POSE', '%s%02d' %(comp, int(k)))
+              data = data.replace('STAGE', lig_name).replace('POSE', '%s%02d' %(comp, int(k)))
               fin.close()
               fin = open("SLURMM-run", "wt")
               fin.write(data)
               fin.close()
               fin = open('../../../../../run_files/PBS-Op', "rt")
               data = fin.read()
-              data = data.replace('STAGE', poses_def[i]).replace('POSE', '%s%02d' %(comp, int(k)))
+              data = data.replace('STAGE', lig_name).replace('POSE', '%s%02d' %(comp, int(k)))
               fin.close()
               fin = open("PBS-run", "wt")
               fin.write(data)
@@ -1292,25 +1287,25 @@ if software == 'openmm' and stage == 'fe':
               fin.write(data)
               fin.close()
               if comp == 'f' or comp == 'w':
-                shutil.copy('../../../../../'+stage+'/'+poses_def[i]+'/rest/c00/disang.rest', './')
-                for file in glob.glob('../../../../../'+stage+'/'+poses_def[i]+'/rest/c00/full*'):
+                shutil.copy('../../../../../'+stage+'/'+lig_name+'/rest/c00/disang.rest', './')
+                for file in glob.glob('../../../../../'+stage+'/'+lig_name+'/rest/c00/full*'):
                   shutil.copy(file, './')
-                for file in glob.glob('../../../../../'+stage+'/'+poses_def[i]+'/rest/c00/vac*'):
+                for file in glob.glob('../../../../../'+stage+'/'+lig_name+'/rest/c00/vac*'):
                   shutil.copy(file, './')
-                for file in glob.glob('../../../../../'+stage+'/'+poses_def[i]+'/rest/c00/tleap_solvate*'):
+                for file in glob.glob('../../../../../'+stage+'/'+lig_name+'/rest/c00/tleap_solvate*'):
                   shutil.copy(file, './')
-                for file in glob.glob('../../../../../'+stage+'/'+poses_def[i]+'/rest/c00/build*'):
+                for file in glob.glob('../../../../../'+stage+'/'+lig_name+'/rest/c00/build*'):
                   shutil.copy(file, './')
               else:
-                shutil.copy('../../../../../'+stage+'/'+poses_def[i]+'/rest/t00/disang.rest', './')
-                shutil.copy('../../../../../'+stage+'/'+poses_def[i]+'/rest/t00/cv.in', './')
-                for file in glob.glob('../../../../../'+stage+'/'+poses_def[i]+'/rest/t00/full*'):
+                shutil.copy('../../../../../'+stage+'/'+lig_name+'/rest/t00/disang.rest', './')
+                shutil.copy('../../../../../'+stage+'/'+lig_name+'/rest/t00/cv.in', './')
+                for file in glob.glob('../../../../../'+stage+'/'+lig_name+'/rest/t00/full*'):
                   shutil.copy(file, './')
-                for file in glob.glob('../../../../../'+stage+'/'+poses_def[i]+'/rest/t00/vac*'):
+                for file in glob.glob('../../../../../'+stage+'/'+lig_name+'/rest/t00/vac*'):
                   shutil.copy(file, './')
-                for file in glob.glob('../../../../../'+stage+'/'+poses_def[i]+'/rest/t00/tleap_solvate*'):
+                for file in glob.glob('../../../../../'+stage+'/'+lig_name+'/rest/t00/tleap_solvate*'):
                   shutil.copy(file, './')
-                for file in glob.glob('../../../../../'+stage+'/'+poses_def[i]+'/rest/t00/build*'):
+                for file in glob.glob('../../../../../'+stage+'/'+lig_name+'/rest/t00/build*'):
                   shutil.copy(file, './')
               os.chdir('../')
             os.chdir('../')
@@ -1335,4 +1330,4 @@ if software == 'openmm' and stage == 'fe':
     if os.path.exists(dirpath) and os.path.isdir(dirpath):
       shutil.rmtree(dirpath)
     os.chdir('../')    
-    print(f"FE stage setup for {poses_def[i]} is completed successfully!")
+    print(f"FE stage setup for {lig_name} is completed successfully!")
