@@ -216,7 +216,7 @@ def build_equil(lig_name, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z,
        ori_string = open(f"{mol.lower()}_temp.pdb","r").read()
        new_string=ori_string.replace('UNL',mol)
        # RDKit unintentionally changes atomtype during sdf -> pdb format convert, which casues issue in tleap
-       Atomtype={'BR':'Br'}
+       Atomtype={'BR':'Br', "CL":'Cl'}
        for element in Atomtype.keys():
           new_string=new_string.replace(element,Atomtype[element])
        fh.write(new_string)
