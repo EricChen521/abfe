@@ -877,9 +877,14 @@ elif stage == 'analysis':
   # Free energy analysis for OpenMM
   if software == 'openmm':
     for lig_name in ligands_list:
-      dG, sd = analysis.fe_openmm(components, temperature, lig_name, dec_method, rest, attach_rest, lambdas, dic_itera1, dic_itera2, itera_steps, dt, dlambda, dec_int, weights, blocks)
-      os.chdir('../../')
-      print(f"{lig_name}:\n\tBinding free energy: {round(dG,2)} +/- {round(sd,2)} kal/mol;")
+      try:
+        dG, sd = analysis.fe_openmm(components, temperature, lig_name, dec_method, rest, attach_rest, lambdas, dic_itera1, dic_itera2, itera_steps, dt, dlambda, dec_int, weights, blocks)  
+        print(f"{lig_name}:\n\tBinding free energy: {round(dG,2)} +/- {round(sd,2)} kal/mol;")
+        os.chdir('../../')
+       
+      except IndexError:
+        print(f"{lig_name}:\n\tBinding free energy: failed!")
+        os.chdir('../../../') 
 
   else: 
   # Free energy analysis for AMBER20
