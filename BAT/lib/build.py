@@ -12,7 +12,8 @@ from lib.scripts import BAT_DIR
 import pathlib
 from rdkit import Chem
 
-def build_equil(lig_name, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ligand_ff, ligand_ph, retain_lig_prot, ligand_charge, other_mol, solv_shell, cofactor_name, cofactor_charge):
+def build_equil(lig_name, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z, l1_range, min_adis, max_adis, ligand_ff, ligand_ph, 
+                retain_lig_prot, ligand_charge, other_mol, solv_shell, cofactor_name, cofactor_charge):
 
 
     # get the parameters for cofactor
@@ -417,18 +418,9 @@ def build_equil(lig_name, celp_st, mol, H1, H2, H3, calc_type, l1_x, l1_y, l1_z,
         build_file.write('%6.2f%6.2f\n'%(0, 0))
 
     build_file.write('TER\n')
-    
-    # Positions of the other atoms, save the cofactor.pdb file
-    # get the cofactor name from other_mol
-    cofactor_name=[]
-    for molecule in other_mol:
-       if molecule not in ['MG','ZN']:
-          cofactor_name.append(molecule.lower())
-    
-    assert len(cofactor_name) <= 1, f"{len(cofactor_name)} cofactor(s) can not be handled!"
-    
-    if other_mol:
-      with open(f"{cofactor_name[0]}.pdb","w+") as fh:
+        
+    if cofactor_name:
+      with open(f"{cofactor_name}.pdb","w+") as fh:
         for i in range(dum_atom + recep_atom + lig_atom, total_atom):
             if resid_list[i] != resid_tmp:
                 build_file.write('TER\n')
