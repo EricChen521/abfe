@@ -103,7 +103,7 @@ itera_steps     =   500       # Number of steps per iteration (total steps will 
 
 itcheck = 100                # write checkpoint file every itcheck iterations
 gamma_ln = 1.0               # collision frequency in ps^-1 for Langevin Dynamics (temperature control)
-dt = 0.004                     # simulation time step in ps
+dt = 0.002                     # simulation time step in ps
 cut = 9.0                      # Simulation interaction cutoff
 
 # Conformational restraints on the protein backbone
