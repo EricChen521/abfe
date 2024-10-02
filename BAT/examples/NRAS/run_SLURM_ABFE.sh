@@ -23,7 +23,7 @@ done
 last_lig=${lig_array[-1]}
 
 cd ${last_lig}
-srun -N 1 -n 1 -p g2 -J check_eq -d afterany:$(cat job.id) echo "${last_lig} eq is done!"
+srun -N 1 -n 1 -t 2-00:00:00 -p g2 -J check_eq -d afterany:$(cat job.id) echo "${last_lig} eq is done!"
 cd ..
 
 cd ../
