@@ -30,8 +30,11 @@ def fe_openmm(components, temperature, pose, dec_method, rest, attach_rest, lamb
     sd_a = sd_bd = sd_t = sd_m = sd_n = sd_v = sd_e = sd_c = sd_r = sd_l = sd_f = sd_w = sd_vs = sd_es = 0
 
     # Get free energies for the whole run
-    os.chdir('fe')
-    os.chdir(pose)
+    try:
+      os.chdir(f'fe/{pose}')
+    except FileNotFoundError:
+      print(f"{pose} free energy directory does not exist")
+      return 0, 0
     # Create Results folder
     if not os.path.exists('Results'):
       os.makedirs('Results')

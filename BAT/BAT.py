@@ -876,15 +876,17 @@ elif stage == 'fe':
 elif stage == 'analysis':
   # Free energy analysis for OpenMM
   if software == 'openmm':
+    work_dir=pathlib.Path(".").resolve()
+    print(f"BAT work dir: {work_dir}")
     for lig_name in ligands_list:
       try:
         dG, sd = analysis.fe_openmm(components, temperature, lig_name, dec_method, rest, attach_rest, lambdas, dic_itera1, dic_itera2, itera_steps, dt, dlambda, dec_int, weights, blocks)  
-        print(f"{lig_name}:\n\tBinding free energy: {round(dG,2)} +/- {round(sd,2)} kal/mol;")
-        os.chdir('../../')
+        print(f"{lig_name}:\n\tBinding free energy: {round(dG,2)} +/- {round(sd,2)} kcal/mol;")
+        os.chdir(work_dir)
        
       except IndexError:
         print(f"{lig_name}:\n\tBinding free energy: failed!")
-        os.chdir('../../../') 
+        os.chdir(work_dir) 
 
   else: 
   # Free energy analysis for AMBER20

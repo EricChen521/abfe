@@ -8,7 +8,7 @@ input_dir = input
 
 # Calculation definitions
 
-celpp_receptor = NRAS_WT_8AZY.pdb        # the receptor file, should include water, mental ions if any
+celpp_receptor = NRAS_WT_8AZY.pdb        # the receptor file, should include water, mental ions if any. Do not cap the protein as it will cause undex problem
 ligands_list = [ligand0]              # List of poses for docked calculations, should be name as ligand#.pdb. 
 
 # Ligand residue name

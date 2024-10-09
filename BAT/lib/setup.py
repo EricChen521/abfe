@@ -19,6 +19,8 @@ def restraints(pose, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil,
     hvy_g = []
     msk = []
     pdb_file = ('vac.pdb')
+
+    print(f"The path of pdb file: {os.getcwd()}/vac.pdb")
     ligand_pdb_file = ('vac_ligand.pdb')
 
     if comp == 'n':
@@ -140,6 +142,9 @@ def restraints(pose, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil,
 
     # Get a relation between atom number and masks
     atm_num = scripts.num_to_mask(pdb_file)
+
+    #print(f"complex atom mask: {atm_num}")
+    #assert 1==0
     ligand_atm_num = scripts.num_to_mask(ligand_pdb_file)
 
     # Get number of ligand atoms
@@ -426,6 +431,8 @@ def restraints(pose, rest, bb_start, bb_end, weight, stage, mol, comp, bb_equil,
         # Ligand translational/rotational restraints
         elif i >= 3+nd and i < 9+nd and comp != 'a': 
           if len(data) == 2:
+            #print(f"atm_num: {atm_num}")
+            #print(f"data: {data}")
             nums = str(atm_num.index(data[0]))+','+str(atm_num.index(data[1]))+','   
             disang_file.write('%s %-23s '%('&rst iat=', nums))
             disang_file.write('r1= %10.4f, r2= %10.4f, r3= %10.4f, r4= %10.4f, rk2= %11.7f, rk3= %11.7f, &end %s \n' % (float(0.0), float(vals[i]), float(vals[i]), float(999.0), ldf, ldf, lign_tr))
